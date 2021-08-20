@@ -1,0 +1,9 @@
+# Ignore scala/sbt stuff
+target/
+project/boot/
+project/project/
+project/target/
+# Ignore editor stuff
+.vscode/
+**/.metals/
+**/.bloop/
