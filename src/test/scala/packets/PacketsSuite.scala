@@ -1,5 +1,6 @@
 package packets
 import Packet._
+import flipsys.Image
 
 class PacketsSuite extends munit.FunSuite {
   test("no payload packet bytes") {
@@ -27,6 +28,20 @@ class PacketsSuite extends munit.FunSuite {
     testPacketBytes(
       StopTestSigns,
       Seq(0x02, 'C', '0', 0x03, '8', 'A')
+    )
+  }
+
+  test("simple image packet bytes") {
+    // Create an image
+    val img = new Image(
+      Vector.tabulate(4, 2)((row, col) =>
+        if (row == 0 && col == 0) true else false
+      )
+    )
+    val packet = new DrawImage(1, img)
+    testPacketBytes(
+      packet,
+      Seq(0x02, '1', '1', '0', '2', '0', '1', '0', '0', 0x03, '7', '8')
     )
   }
 

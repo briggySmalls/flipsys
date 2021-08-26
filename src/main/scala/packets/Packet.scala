@@ -1,10 +1,55 @@
 package packets
 
-import java.nio.charset.StandardCharsets
+import flipsys.Image
+import flipsys.HanoverByte
 
 object Packet {
+  def _imagePayload(image: Image): Seq[Byte] = {
+    val data = _imageToInts(image)
+    HanoverByte(data.length & 0xff).toAsciiHex() ++ data.flatMap(
+      HanoverByte(_).toAsciiHex()
+    )
+  }
+  def _imageToInts(image: Image): Seq[Int] = {
+    // We pad each column to align with a bytes-worth of data
+    val byteAlignedRowCount = _closestLargerMultiple(image.rows, 8)
+    val newImage =
+      image.image ++ Vector.fill(
+        byteAlignedRowCount - image.rows,
+        image.columns
+      )(false)
+    // Interpret each column as a series of whole bytes
+    _imageToBits(newImage)
+      .grouped(8)
+      .map(
+        _.zipWithIndex
+          .foldLeft(0)((acc, kv) =>
+            kv match {
+              case (value, index) =>
+                if (value) acc + scala.math.pow(2, index).toInt else acc
+            }
+          )
+      )
+      .toSeq
+  }
+
+  def _imageToBits(image: Vector[Vector[Boolean]]): Seq[Boolean] = {
+    require(image.length > 0)
+    for (
+      row <- 0 until image.length;
+      col <- 0 until image(0).length
+    )
+      yield image(row)(col)
+  }
+
+  def _closestLargerMultiple(value: Int, base: Int) = {
+    (value.floatValue / base).ceil.toInt * base
+  }
+
   object StartTestSigns extends Packet(3, 0)
   object StopTestSigns extends Packet(12, 0)
+  class DrawImage(address: Int, image: Image)
+      extends Packet(1, address, payloadOption = Some(_imagePayload(image)))
 }
 
 class Packet(
@@ -16,27 +61,24 @@ class Packet(
   val endByte = 0x03.toByte
 
   def bytes: Seq[Byte] = {
-    var data: Seq[Byte] = _toAsciiHex(Seq(command, address))
+    require(command < scala.math.pow(2, 8))
+    require(address < scala.math.pow(2, 8))
+    var data: Seq[Byte] =
+      Seq(command, address).flatMap(
+        HanoverByte(_, isPadded = false).toAsciiHex()
+      )
     payloadOption match {
       case None          => {}
       case Some(payload) => data ++= payload
     }
     val checkSummedData = data :+ endByte
-    (startByte +: checkSummedData) ++ _toAsciiHex(
-      Seq(_calculateChecksum(checkSummedData))
-    )
+    (startByte +: checkSummedData) ++ HanoverByte(
+      _calculateChecksum(checkSummedData)
+    ).toAsciiHex()
   }
 
   def _calculateChecksum(input: Seq[Byte]): Int = {
-    val totalClipped = input.sum & 0xff
+    val totalClipped = input.sum.toByte & 0xff
     (((totalClipped ^ 0xff) + 1) & 0xff)
-  }
-
-  def _toAsciiHex(values: Seq[Int]): Seq[Byte] = {
-    values
-      .flatMap(_.toHexString.toUpperCase)
-      .mkString
-      .getBytes(StandardCharsets.US_ASCII)
-      .toIndexedSeq
   }
 }
