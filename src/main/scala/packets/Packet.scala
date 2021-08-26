@@ -60,16 +60,19 @@ class Packet(
   def bytes: Seq[Byte] = {
     require(command < scala.math.pow(2, 8))
     require(address < scala.math.pow(2, 8))
+    // Start with a single byte for the command and address respectively
     var data: Seq[Byte] =
       Seq(command, address).flatMap(
         HanoverByte(_, isPadded = false).toAsciiHex()
       )
+    // Add the payload bytes, if necessary
     payloadOption match {
       case None => {}
       case Some(payload) =>
         data ++= payload.flatMap(HanoverByte(_).toAsciiHex())
     }
     val checkSummedData = data :+ endByte
+    // Assemble together
     (startByte +: checkSummedData) ++ HanoverByte(
       _calculateChecksum(checkSummedData)
     ).toAsciiHex()
