@@ -4,11 +4,9 @@ import flipsys.Image
 import flipsys.HanoverByte
 
 object Packet {
-  def _imagePayload(image: Image): Seq[Byte] = {
+  def _imagePayload(image: Image): Seq[Int] = {
     val data = _imageToInts(image)
-    HanoverByte(data.length & 0xff).toAsciiHex() ++ data.flatMap(
-      HanoverByte(_).toAsciiHex()
-    )
+    (data.length & 0xff) +: data
   }
   def _imageToInts(image: Image): Seq[Int] = {
     // We pad each column to align with a bytes-worth of data
@@ -55,7 +53,7 @@ object Packet {
 class Packet(
     val command: Int,
     val address: Int,
-    val payloadOption: Option[Seq[Byte]] = None
+    val payloadOption: Option[Seq[Int]] = None
 ) {
   val startByte = 0x02.toByte
   val endByte = 0x03.toByte
@@ -68,8 +66,9 @@ class Packet(
         HanoverByte(_, isPadded = false).toAsciiHex()
       )
     payloadOption match {
-      case None          => {}
-      case Some(payload) => data ++= payload
+      case None => {}
+      case Some(payload) =>
+        data ++= payload.flatMap(HanoverByte(_).toAsciiHex())
     }
     val checkSummedData = data :+ endByte
     (startByte +: checkSummedData) ++ HanoverByte(

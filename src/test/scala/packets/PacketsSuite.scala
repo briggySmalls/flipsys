@@ -12,8 +12,8 @@ class PacketsSuite extends munit.FunSuite {
 
   test("with payload packet bytes") {
     testPacketBytes(
-      new Packet(1, 2, payloadOption = Some(Seq('3', '4', '5'))),
-      Seq(0x02, '1', '2', '3', '4', '5', 0x03, 'F', 'E')
+      new Packet(1, 2, payloadOption = Some(Seq(3, 4, 5))),
+      Seq(0x02, '1', '2', '0', '3', '0', '4', '0', '5', 0x03, '6', 'E')
     )
   }
 
