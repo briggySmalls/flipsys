@@ -1,6 +1,6 @@
-package packets
-import Packet._
-import flipsys.Image
+package data
+
+import data.Packet._
 
 class PacketsSuite extends munit.FunSuite {
   test("no payload packet bytes") {

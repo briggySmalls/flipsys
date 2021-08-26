@@ -1,7 +1,4 @@
-package packets
-
-import flipsys.Image
-import flipsys.HanoverByte
+package data
 
 object Packet {
   def _imageToInts(image: Image): Seq[Int] = {

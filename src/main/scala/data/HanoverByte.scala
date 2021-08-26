@@ -1,4 +1,4 @@
-package flipsys
+package data
 
 import java.nio.charset.StandardCharsets
 
