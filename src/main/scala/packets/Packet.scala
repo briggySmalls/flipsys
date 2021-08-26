@@ -4,10 +4,6 @@ import flipsys.Image
 import flipsys.HanoverByte
 
 object Packet {
-  def _imagePayload(image: Image): Seq[Int] = {
-    val data = _imageToInts(image)
-    (data.length & 0xff) +: data
-  }
   def _imageToInts(image: Image): Seq[Int] = {
     // We pad each column to align with a bytes-worth of data
     val byteAlignedRowCount = _closestLargerMultiple(image.rows, 8)
@@ -17,7 +13,7 @@ object Packet {
         image.columns
       )(false)
     // Interpret each column as a series of whole bytes
-    _imageToBits(newImage)
+    val data = _imageToBits(newImage)
       .grouped(8)
       .map(
         _.zipWithIndex
@@ -29,6 +25,9 @@ object Packet {
           )
       )
       .toSeq
+    // We prefix with the "resolution" of the data
+    // This is essentially a (possibly-truncated) byte count
+    (data.length & 0xff) +: data
   }
 
   def _imageToBits(image: Vector[Vector[Boolean]]): Seq[Boolean] = {
@@ -47,7 +46,7 @@ object Packet {
   object StartTestSigns extends Packet(3, 0)
   object StopTestSigns extends Packet(12, 0)
   class DrawImage(address: Int, image: Image)
-      extends Packet(1, address, payloadOption = Some(_imagePayload(image)))
+      extends Packet(1, address, payloadOption = Some(_imageToInts(image)))
 }
 
 class Packet(
