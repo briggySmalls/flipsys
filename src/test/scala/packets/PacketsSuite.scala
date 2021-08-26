@@ -45,6 +45,23 @@ class PacketsSuite extends munit.FunSuite {
     )
   }
 
+  test("tall image packet bytes") {
+    // Create an image
+    val img = new Image(
+      Vector.tabulate(15, 2)((row, col) =>
+        if (row == 0 && col == 0) true
+        else if (row == 9 && col == 0) true
+        else false
+      )
+    )
+    val packet = new DrawImage(1, img)
+    testPacketBytes(
+      packet,
+      Seq(0x02, '1', '1', '0', '4', '0', '1', '0', '2', '0', '0', '0', '0',
+        0x03, 'B', '4')
+    )
+  }
+
   def testPacketBytes(packet: Packet, bytes: Seq[Byte])(implicit
       loc: munit.Location
   ) = {

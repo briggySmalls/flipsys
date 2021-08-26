@@ -33,8 +33,8 @@ object Packet {
   def _imageToBits(image: Vector[Vector[Boolean]]): Seq[Boolean] = {
     require(image.length > 0)
     for (
-      row <- 0 until image.length;
-      col <- 0 until image(0).length
+      col <- 0 until image(0).length;
+      row <- 0 until image.length
     )
       yield image(row)(col)
   }
