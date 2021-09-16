@@ -16,5 +16,6 @@ scalacOptions ++= Seq(
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
-  "org.scalameta" %% "munit" % "0.7.22" % Test
+  "org.scalameta" %% "munit" % "0.7.22" % Test,
+  "com.fazecast" % "jSerialComm" % "[2.0.0,3.0.0)"
 )
