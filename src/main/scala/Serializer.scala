@@ -13,10 +13,17 @@ class Serializer(port: String) extends Actor with ActorLogging {
   import Serializer._
 
   val comPort = SerialPort.getCommPort(port)
-  comPort.setComPortParameters(4800, 8, 1, 0)
-  comPort.openPort()
+
+  override def preStart() = {
+    comPort.setComPortParameters(4800, 8, 1, 0)
+    comPort.openPort()
+  }
 
   def receive = LoggingReceive {
     case Write(data) => comPort.writeBytes(data.toArray, data.length)
+  }
+
+  override def postStop() = {
+    comPort.closePort()
   }
 }
