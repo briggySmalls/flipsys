@@ -42,7 +42,7 @@ object Packet {
 
   object StartTestSigns extends Packet(3, 0)
   object StopTestSigns extends Packet(12, 0)
-  class DrawImage(address: Int, image: Image)
+  case class DrawImage(override val address: Int, image: Image)
       extends Packet(1, address, payloadOption = Some(_imageToInts(image)))
 }
 
