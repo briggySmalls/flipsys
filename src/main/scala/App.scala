@@ -1,31 +1,36 @@
-import Clock.TimeImage
-import SignController.{Display, DisplayFailed, DisplaySucceeded}
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.NotUsed
+import akka.stream.ClosedShape
+import akka.stream.scaladsl.{Broadcast, GraphDSL, Zip}
+import com.github.nscala_time.time.Imports.DateTime
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object App {
-  def props() = Props(new App)
-}
+  private val size = (84, 7)
 
-class App extends Actor with ActorLogging {
-  val size = (84, 7)
-  val serializer = context.actorOf(Serializer.props("dev/tty.usbserial-0001"), "serializer")
-  val clock = context.actorOf(Clock.props(size, 2 seconds), "clock")
-  val signs = Map(
-    "top" -> context.actorOf(Sign.props(1, size, serializer), "top"),
-    "bottom" -> context.actorOf(Sign.props(2, size, serializer), "bottom"),
-  )
-  val signController = context.actorOf(SignController.props(signs, serializer), "controller")
-  val displaySequencer = new Sequencer()
+  val graph = GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
+    import GraphDSL.Implicits._ // brings some nice operators in scope
 
-  override def receive: Receive = {
-    case TimeImage(image) => signController ! Display(displaySequencer.nextSeq(), Map(
-      "top" -> image,
-      "bottom" -> image,
-    ))
-    case DisplaySucceeded(id) => log.info("Displayed {}", id)
-    case DisplayFailed(id, message) => log.error(message)
+    // Create the elements
+    val clockSource = builder.add(Clock.clockSource(2 seconds))
+    val clockImageFactory = new Clock()
+    val clockImageFlows = List(1, 2).map(
+        address => builder.add(
+          clockImageFactory.clockImageFlow(size).via(Sign.SignFlow(address, size))
+        )
+    )
+    val serializerSink = builder.add(new SerializerSink("dev/tty.usbserial-0001"))
+    // Create the junction elements
+    val broadcast = builder.add(Broadcast[DateTime](2))
+    val zip = builder.add(Zip[Seq[Byte], Seq[Byte]]())
+
+    // Build the graph
+    clockSource ~> broadcast
+    broadcast.out(0) ~> clockImageFlows(1) ~> zip.in0
+    broadcast.out(1) ~> clockImageFlows(2) ~> zip.in1
+    zip.out ~> serializerSink
+
+    ClosedShape
   }
 }
