@@ -1,6 +1,6 @@
 import akka.NotUsed
 import akka.stream.ClosedShape
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Source, Zip}
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink, Source, Zip}
 import com.github.nscala_time.time.Imports.DateTime
 import data.Image
 import data.Packet.DrawImage
@@ -16,23 +16,26 @@ object App {
     import GraphDSL.Implicits._ // brings some nice operators in scope
 
     // Create the elements
-    val clockSrc = builder.add(clockSource(2 seconds))
+    val clockSrc = clockSource(2 seconds)
+    val out = Sink.foreach(println)
+
     val clockImageFlows = List(1, 2).map(
         address => builder.add(
           clockImageFlow(size).via(signFlow(address, size))
         )
     )
-    val serializerSink = builder.add(new SerializerSink("dev/tty.usbserial-0001"))
+//    val serializerSink = builder.add(new SerializerSink("dev/tty.usbserial-0001"))
     // Create the junction elements
     val broadcast = builder.add(Broadcast[DateTime](2))
-    val zip = builder.add(Zip[Seq[Byte], Seq[Byte]]())
+    val merge = builder.add(Merge[Seq[Byte]](2))
 
     // Build the graph
     clockSrc ~> broadcast
-    broadcast.out(0) ~> clockImageFlows(1) ~> zip.in0
-    broadcast.out(1) ~> clockImageFlows(2) ~> zip.in1
-    zip.out ~> serializerSink
+    broadcast ~> clockImageFlows(0) ~> merge
+    broadcast ~> clockImageFlows(1) ~> merge
+    merge ~> out
 
+    // Indicate the graph is over
     ClosedShape
   }
 
