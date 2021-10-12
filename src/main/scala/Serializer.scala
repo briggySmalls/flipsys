@@ -1,9 +1,7 @@
 import akka.stream.Attributes
 import akka.stream.Inlet
 import akka.stream.SinkShape
-import akka.stream.stage.GraphStage
-import akka.stream.stage.GraphStageLogic
-import akka.stream.stage.InHandler
+import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, StageLogging}
 import com.fazecast.jSerialComm.SerialPort
 
 // Custom akka sink for serial comms
@@ -14,18 +12,21 @@ class SerializerSink(port: String) extends GraphStage[SinkShape[Seq[Byte]]] {
   override val shape: SinkShape[Seq[Byte]] = SinkShape(in)
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
-    new GraphStageLogic(shape) {
+    new GraphStageLogic(shape) with StageLogging {
 
       override def preStart(): Unit = {
         // Open the port
+        log.debug("Opening port...")
         comPort.setComPortParameters(4800, 8, 1, 0)
         comPort.openPort()
+        log.debug("Port opened!")
         // Request first element
         pull(in)
       }
 
       override def postStop(): Unit = {
         comPort.closePort()
+        log.debug("Port closed!")
       }
 
       setHandler(in, new InHandler {

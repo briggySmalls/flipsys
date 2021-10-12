@@ -17,23 +17,27 @@ object App {
 
     // Create the elements
     val clockSrc = clockSource(2 seconds)
-    val out = Sink.foreach(println)
+    val out = new SerializerSink("dev/tty.usbserial-0001")
 
-    val clockImageFlows = List(1, 2).map(
+    val signAddresses = Seq(1, 2)
+    val clockImageFlows = signAddresses.map(
         address => builder.add(
           clockImageFlow(size).via(signFlow(address, size))
         )
     )
-//    val serializerSink = builder.add(new SerializerSink("dev/tty.usbserial-0001"))
+    val identity = Flow[Seq[Byte]]
+//      .throttle(1, 1 seconds)
+      .log("out")
     // Create the junction elements
-    val broadcast = builder.add(Broadcast[DateTime](2))
-    val merge = builder.add(Merge[Seq[Byte]](2))
+    val broadcast = builder.add(Broadcast[DateTime](signAddresses.length))
+    val merge = builder.add(Merge[Seq[Byte]](signAddresses.length))
 
     // Build the graph
     clockSrc ~> broadcast
-    broadcast ~> clockImageFlows(0) ~> merge
-    broadcast ~> clockImageFlows(1) ~> merge
-    merge ~> out
+    clockImageFlows.foreach(
+      broadcast ~> _ ~> merge
+    )
+    merge ~> identity ~> out
 
     // Indicate the graph is over
     ClosedShape
