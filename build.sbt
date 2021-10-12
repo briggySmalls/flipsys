@@ -1,7 +1,7 @@
 testFrameworks += new TestFramework("munit.Framework")
 Test / parallelExecution := false
 
-val akkaVersion = "2.6.9"
+val akkaVersion = "2.6.16"
 
 scalaVersion := "2.13.5"
 scalacOptions ++= Seq(
@@ -15,7 +15,9 @@ scalacOptions ++= Seq(
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
   "org.scalameta" %% "munit" % "0.7.22" % Test,
-  "com.fazecast" % "jSerialComm" % "[2.0.0,3.0.0)"
+  "com.fazecast" % "jSerialComm" % "[2.0.0,3.0.0)",
+  "com.github.nscala-time" %% "nscala-time" % "2.30.0"
 )

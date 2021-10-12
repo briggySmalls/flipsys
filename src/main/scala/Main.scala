@@ -1,8 +1,9 @@
 import akka.actor.ActorSystem
+import akka.stream.scaladsl.RunnableGraph
 
 object Main {
   def main(args: Array[String]): Unit = {
-    val system = ActorSystem("flipsys")
-    system.actorOf(App.props())
+    implicit val system = ActorSystem("flipsys")
+    RunnableGraph.fromGraph(App.graph).run()
   }
 }

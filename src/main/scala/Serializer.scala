@@ -1,29 +1,41 @@
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.event.LoggingReceive
-import com.fazecast.jSerialComm.{SerialPort, SerialPortDataListener, SerialPortEvent}
+import akka.stream.Attributes
+import akka.stream.Inlet
+import akka.stream.SinkShape
+import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, StageLogging}
+import com.fazecast.jSerialComm.SerialPort
 
-object Serializer {
-  case class Write(data: Seq[Byte])
-  object Written
-
-  def props(port: String) = Props(new Serializer(port))
-}
-
-class Serializer(port: String) extends Actor with ActorLogging {
-  import Serializer._
-
+// Custom akka sink for serial comms
+class SerializerSink(port: String) extends GraphStage[SinkShape[Seq[Byte]]] {
   val comPort = SerialPort.getCommPort(port)
 
-  override def preStart() = {
-    comPort.setComPortParameters(4800, 8, 1, 0)
-    comPort.openPort()
-  }
+  val in: Inlet[Seq[Byte]] = Inlet("SerializerSink")
+  override val shape: SinkShape[Seq[Byte]] = SinkShape(in)
 
-  def receive = LoggingReceive {
-    case Write(data) => comPort.writeBytes(data.toArray, data.length)
-  }
+  override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
+    new GraphStageLogic(shape) with StageLogging {
 
-  override def postStop() = {
-    comPort.closePort()
-  }
+      override def preStart(): Unit = {
+        // Open the port
+        log.debug("Opening port...")
+        comPort.setComPortParameters(4800, 8, 1, 0)
+        comPort.openPort()
+        log.debug("Port opened!")
+        // Request first element
+        pull(in)
+      }
+
+      override def postStop(): Unit = {
+        comPort.closePort()
+        log.debug("Port closed!")
+      }
+
+      setHandler(in, new InHandler {
+        override def onPush(): Unit = {
+          write(grab(in))
+          pull(in)
+        }
+      })
+    }
+
+  private def write(data: Seq[Byte]) = comPort.writeBytes(data.toArray, data.length)
 }
