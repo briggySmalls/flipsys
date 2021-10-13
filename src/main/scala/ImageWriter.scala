@@ -3,8 +3,8 @@ import data.Image
 import java.awt.{Color, Font}
 import java.awt.image.BufferedImage
 
-class ImageWriter(size: (Int, Int)) {
-  def textToImage(text: String): Image = {
+object ImageWriter {
+  def textToImage(size: (Int, Int), text: String): Image = {
     // Create a new, blank image
     val newImage = new BufferedImage(size._1, size._2, BufferedImage.TYPE_BYTE_BINARY)
     val graphics = newImage.createGraphics()

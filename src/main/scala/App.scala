@@ -1,9 +1,11 @@
+import ImageWriter.textToImage
 import akka.NotUsed
 import akka.stream.{ClosedShape, SinkShape}
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink, Source, Zip}
 import com.github.nscala_time.time.Imports.{DateTime, DateTimeFormat}
 import data.Image
 import data.Packet.DrawImage
+import org.joda.time.format.DateTimeFormatter
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -11,7 +13,6 @@ import scala.util.Random
 
 object App {
   private val size = (84, 7)
-  private val imageWriter = new ImageWriter(size)
 
   val graph = GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
     import GraphDSL.Implicits._ // brings some nice operators in scope
@@ -23,8 +24,15 @@ object App {
     val merge = builder.add(Merge[(String, Image)](signs.size))
     val sink = signsSink("dev/tty.usbserial-0001", signs)
 
-    val topImages = clockImageSource(size).map(("top", _))
-    val bottomImages = clockImageSource(size).map(("bottom", _))
+    val topImages = clockSource(2 seconds)
+      .via(timeRenderer(DateTimeFormat.forPattern("HH:mm:ss")))
+      .via(textToImageFlow(size))
+      .map(("top", _))
+
+    val bottomImages = clockSource(1 day)
+      .via(timeRenderer(DateTimeFormat.forPattern("EEE, MMM d")))
+      .via(textToImageFlow(size))
+      .map(("bottom", _))
 
     topImages ~> merge
     bottomImages ~> merge
@@ -35,7 +43,9 @@ object App {
   }
 
   def clockImageSource(size: (Int, Int)) =
-    clockSource(2 seconds).via(clockImageFlow(size))
+    clockSource(2 seconds)
+      .via(timeRenderer(DateTimeFormat.forPattern("HH:mm:ss")))
+      .via(textToImageFlow(size))
 
   def clockSource(interval: FiniteDuration): Source[DateTime, _] =
     Source.tick(0 second, interval, "tick").map(_ => DateTime.now())
@@ -65,10 +75,11 @@ object App {
       SinkShape.of(broadcast.in)
     })
 
-  def clockImageFlow(size: (Int, Int)): Flow[DateTime, Image, NotUsed] = {
-    val fmt = DateTimeFormat.forPattern("HH:mm:ss");
-    Flow[DateTime].map(datetime => imageWriter.textToImage(fmt.print(datetime)))
-  }
+  def timeRenderer(format: DateTimeFormatter): Flow[DateTime, String, NotUsed] =
+    Flow[DateTime].map(dt => format.print(dt))
+
+  def textToImageFlow(size: (Int, Int)): Flow[String, Image, NotUsed] =
+    Flow[String].map(textToImage(size, _))
 
   def signFlow(address: Int, size: (Int, Int)): Flow[Image, Seq[Byte], NotUsed] =
     Flow[Image].map(image => size match {

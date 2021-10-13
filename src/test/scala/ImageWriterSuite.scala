@@ -1,7 +1,8 @@
+import ImageWriter.textToImage
+
 class ImageWriterSuite  extends munit.FunSuite {
   test("no payload packet bytes") {
-    val iw = new ImageWriter((84, 7))
-    val image = iw.textToImage("Hello")
+    val image = textToImage((84, 7), "Hello")
     println(image)
   }
 }
