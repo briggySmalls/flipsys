@@ -4,11 +4,11 @@ object Packet {
   def _imageToInts(image: Image): Seq[Int] = {
     // We pad each column to align with a bytes-worth of data
     val byteAlignedRowCount = _closestLargerMultiple(image.rows, 8)
-    val newImage =
+    val newImage = new Image(
       image.image ++ Vector.fill(
         byteAlignedRowCount - image.rows,
         image.columns
-      )(false)
+      )(false))
     // Interpret each column as a series of whole bytes
     val data = _imageToBits(newImage)
       .grouped(8)
@@ -27,13 +27,12 @@ object Packet {
     (data.length & 0xff) +: data
   }
 
-  def _imageToBits(image: Vector[Vector[Boolean]]): Seq[Boolean] = {
-    require(image.length > 0)
+  def _imageToBits(image: Image): Seq[Boolean] = {
     for (
-      col <- 0 until image(0).length;
-      row <- 0 until image.length
+      col <- 0 until image.columns;
+      row <- 0 until image.rows
     )
-      yield image(row)(col)
+      yield image.image(row)(col)
   }
 
   def _closestLargerMultiple(value: Int, base: Int) = {
