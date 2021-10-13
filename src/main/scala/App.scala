@@ -1,5 +1,5 @@
 import akka.NotUsed
-import akka.stream.ClosedShape
+import akka.stream.{ClosedShape, SinkShape}
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink, Source, Zip}
 import com.github.nscala_time.time.Imports.{DateTime, DateTimeFormat}
 import data.Image
@@ -12,47 +12,63 @@ import scala.util.Random
 object App {
   private val size = (84, 7)
   private val imageWriter = new ImageWriter(size)
-  val fmt = DateTimeFormat.forPattern("HH:mm:ss");
 
   val graph = GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
     import GraphDSL.Implicits._ // brings some nice operators in scope
 
-    // Create the elements
-    val clockSrc = clockSource(2 seconds)
-    val out = new SerializerSink("dev/tty.usbserial-0001")
-//    val out = Sink.ignore
-
-    val signAddresses = Seq(1, 2)
-    val clockImageFlows = signAddresses.map(
-        address => builder.add(
-          clockImageFlow(size).log("image", drawImage(_)).via(signFlow(address, size))
-        )
+    val signs = Map(
+      "top" -> (1, size),
+      "bottom" -> (2, size),
     )
-    val identity = Flow[Seq[Byte]]
-//      .throttle(1, 1 seconds)
-      .log("out")
-    // Create the junction elements
-    val broadcast = builder.add(Broadcast[DateTime](signAddresses.length))
-    val merge = builder.add(Merge[Seq[Byte]](signAddresses.length))
+    val merge = builder.add(Merge[(String, Image)](signs.size))
+    val sink = signsSink("dev/tty.usbserial-0001", signs)
 
-    // Build the graph
-    clockSrc ~> broadcast
-    clockImageFlows.foreach(
-      broadcast ~> _ ~> merge
-    )
-    merge ~> identity ~> out
+    val topImages = clockImageSource(size).map(("top", _))
+    val bottomImages = clockImageSource(size).map(("bottom", _))
+
+    topImages ~> merge
+    bottomImages ~> merge
+    merge ~> sink
 
     // Indicate the graph is over
     ClosedShape
   }
 
+  def clockImageSource(size: (Int, Int)) =
+    clockSource(2 seconds).via(clockImageFlow(size))
+
   def clockSource(interval: FiniteDuration): Source[DateTime, _] =
     Source.tick(0 second, interval, "tick").map(_ => DateTime.now())
 
-  private val random = new Random()
+  def signsSink(serialPort: String, signs: Map[String, (Int, (Int, Int))]): Sink[(String, Image), NotUsed] =
+    Sink.fromGraph(GraphDSL.create() { implicit builder =>
+      import GraphDSL.Implicits._
 
-  def clockImageFlow(size: (Int, Int)): Flow[DateTime, Image, NotUsed] =
+      val sink = new SerializerSink(serialPort)
+      val broadcast = builder.add(Broadcast[(String, Image)](signs.size))
+      val signFlows = signs.map({
+        case (id, (address, size)) => builder.add(
+          Flow[(String, Image)]
+            .filter(_._1 == id)
+            .map(_._2)
+            .log(id, drawImage(_))
+            .via(signFlow(address, size))
+        )
+      })
+      val merge = builder.add(Merge[Seq[Byte]](signs.size))
+
+      signFlows.foreach(flow => {
+        broadcast ~> flow ~> merge
+      })
+      merge ~> sink
+
+      SinkShape.of(broadcast.in)
+    })
+
+  def clockImageFlow(size: (Int, Int)): Flow[DateTime, Image, NotUsed] = {
+    val fmt = DateTimeFormat.forPattern("HH:mm:ss");
     Flow[DateTime].map(datetime => imageWriter.textToImage(fmt.print(datetime)))
+  }
 
   def signFlow(address: Int, size: (Int, Int)): Flow[Image, Seq[Byte], NotUsed] =
     Flow[Image].map(image => size match {
