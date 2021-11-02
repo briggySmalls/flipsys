@@ -1,16 +1,16 @@
 package data
 
 object Packet {
-  def _imageToInts(image: Image): Seq[Int] = {
+  private def imageToInts(image: Image): Seq[Int] = {
     // We pad each column to align with a bytes-worth of data
-    val byteAlignedRowCount = _closestLargerMultiple(image.rows, 8)
+    val byteAlignedRowCount = closestLargerMultiple(image.rows, 8)
     val newImage = new Image(
       image.data ++ Vector.fill(
         byteAlignedRowCount - image.rows,
         image.columns
       )(false))
     // Interpret each column as a series of whole bytes
-    val data = _imageToBits(newImage)
+    val data = imageToBits(newImage)
       .grouped(8)
       .map(
         _.zipWithIndex
@@ -27,7 +27,7 @@ object Packet {
     (data.length & 0xff) +: data
   }
 
-  def _imageToBits(image: Image): Seq[Boolean] = {
+  private def imageToBits(image: Image): Seq[Boolean] = {
     for (
       col <- 0 until image.columns;
       row <- 0 until image.rows
@@ -35,14 +35,14 @@ object Packet {
       yield image.data(row)(col)
   }
 
-  def _closestLargerMultiple(value: Int, base: Int) = {
+  private def closestLargerMultiple(value: Int, base: Int) = {
     (value.floatValue / base).ceil.toInt * base
   }
 
   object StartTestSigns extends Packet(3, 0)
   object StopTestSigns extends Packet(12, 0)
   case class DrawImage(override val address: Int, image: Image)
-      extends Packet(1, address, payloadOption = Some(_imageToInts(image)))
+      extends Packet(1, address, payloadOption = Some(imageToInts(image)))
 }
 
 class Packet(
