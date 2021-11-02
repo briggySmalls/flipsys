@@ -23,8 +23,8 @@ object App {
     })))
 
     val signs = Map(
-      "top" -> (1, size),
-      "bottom" -> (2, size),
+      "top" -> (2, size),
+      "bottom" -> (1, size),
     )
     val sink = signsSink("dev/tty.usbserial-0001", signs)
 
