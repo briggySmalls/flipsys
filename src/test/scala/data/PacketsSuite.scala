@@ -33,7 +33,7 @@ class PacketsSuite extends munit.FunSuite {
 
   test("simple image packet bytes") {
     // Create an image
-    val img = new Image(
+    val img = Image(
       Vector.tabulate(4, 2)((row, col) =>
         if (row == 0 && col == 0) true else false
       )
@@ -47,7 +47,7 @@ class PacketsSuite extends munit.FunSuite {
 
   test("tall image packet bytes") {
     // Create an image
-    val img = new Image(
+    val img = Image(
       Vector.tabulate(15, 2)((row, col) =>
         if (row == 0 && col == 0) true
         else if (row == 9 && col == 0) true

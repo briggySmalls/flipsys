@@ -4,7 +4,7 @@ object Packet {
   private def imageToInts(image: Image): Seq[Int] = {
     // We pad each column to align with a bytes-worth of data
     val byteAlignedRowCount = closestLargerMultiple(image.rows, 8)
-    val newImage = new Image(
+    val newImage = Image(
       image.data ++ Vector.fill(
         byteAlignedRowCount - image.rows,
         image.columns
