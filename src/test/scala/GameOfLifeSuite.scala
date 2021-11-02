@@ -2,8 +2,7 @@ import data.Image
 import org.scalatest._
 import flatspec._
 import matchers.should._
-import org.scalatest.Inspectors.forAll
-import org.scalatest.matchers.MatchResult
+import org.scalatest.prop.TableDrivenPropertyChecks._
 
 class GameOfLifeSuite  extends AnyFlatSpec with Matchers {
   val block = Vector.tabulate(4, 4)({
@@ -17,28 +16,27 @@ class GameOfLifeSuite  extends AnyFlatSpec with Matchers {
     case _ => false
   })
 
-  val stillLives = Seq(
-    block,
-    tub
-  )
-
-  private def testIterations(gol: GameOfLife, expected: Seq[Vector[Vector[Boolean]]]): Assertion = {
-    expected match {
-      case Nil => true should be (true)
-      case next :: rest =>
-        gol.image.image should be (next)
-        testIterations(gol.iterate(), rest)
+  private def getIterations(gol: GameOfLife, iterations: Int): Seq[Image] = {
+    var internalGol = gol
+    for {
+      _ <- 0 until iterations
+    } yield {
+      internalGol = internalGol.iterate()
+      gol.image
     }
   }
 
-  "A still life" should "never change" in {
-    forAll(stillLives) { stillLife =>
-      testIterations(
-        GameOfLife(new Image(stillLife)),
-        for (_ <- 0 to 2) yield stillLife
-      )
-    }
-  }
+//  "A still life" should "never change" {
+//    val stillLives = Table(
+//      ("stillLife"),
+//      (block),
+//      (tub)
+//    )
+//    forAll(stillLives) { stillLife =>
+//      val iterations = getIterations(GameOfLife(new Image(stillLife)), 2)
+//      iterations.foreach(image => image should equal (stillLife))
+//    }
+//  }
 
   val blinker = Seq(
     Vector.tabulate(5, 5)({
@@ -51,14 +49,18 @@ class GameOfLifeSuite  extends AnyFlatSpec with Matchers {
     })
   )
 
-  val oscillators = Seq(blinker)
+  val oscillators = Table(
+    ("oscillator"),
+    (blinker),
+  )
 
   "An oscillator" should "repeat" in {
     forAll(oscillators) { oscillator =>
-      testIterations(
-        GameOfLife(new Image(oscillator(0))),
-        (for (_ <- 0 to 5; frame <- oscillator) yield frame).tail
-      )
+      val iterations = getIterations(GameOfLife(new Image(oscillator(0))), 5)
+      val expected = (for(_ <- 0 until 5; frame <- oscillator) yield frame).tail
+      iterations.zip(expected).foreach {
+        case (actual, expected) => actual should equal (expected)
+      }
     }
   }
 
