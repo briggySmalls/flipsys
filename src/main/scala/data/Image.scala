@@ -2,13 +2,13 @@ package data
 
 object Image {}
 
-class Image(val image: Vector[Vector[Boolean]]) {
-  require(image.length > 0)
+case class Image(val data: Vector[Vector[Boolean]]) {
+  require(data.length > 0)
   require({
-    val lengths = image.map(_.length)
+    val lengths = data.map(_.length)
     lengths.forall(_ == lengths.head)
   })
 
-  def rows = image.length
-  def columns = image(0).length
+  def rows = data.length
+  def columns = data(0).length
 }

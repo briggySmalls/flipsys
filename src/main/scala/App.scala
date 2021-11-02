@@ -96,7 +96,7 @@ object App {
         row <- 0 until image.rows
         col <- 0 until image.columns
       }
-        yield (image.image(row)(col) match {
+        yield (image.data(row)(col) match {
           case true => "*"
           case false => " "
         }) + (if (col == image.columns - 1) "\n" else "")

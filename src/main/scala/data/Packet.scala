@@ -5,7 +5,7 @@ object Packet {
     // We pad each column to align with a bytes-worth of data
     val byteAlignedRowCount = _closestLargerMultiple(image.rows, 8)
     val newImage = new Image(
-      image.image ++ Vector.fill(
+      image.data ++ Vector.fill(
         byteAlignedRowCount - image.rows,
         image.columns
       )(false))
@@ -32,7 +32,7 @@ object Packet {
       col <- 0 until image.columns;
       row <- 0 until image.rows
     )
-      yield image.image(row)(col)
+      yield image.data(row)(col)
   }
 
   def _closestLargerMultiple(value: Int, base: Int) = {
