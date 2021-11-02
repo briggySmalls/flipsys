@@ -61,7 +61,7 @@ object App {
           Flow[(String, Image)]
             .filter(_._1 == id)
             .map(_._2)
-            .log(id, drawImage(_))
+            .log(id, _.toString())
             .via(signFlow(address, size))
         )
       })
@@ -89,16 +89,4 @@ object App {
           DrawImage(address, image).bytes
         }
       })
-
-  def drawImage(image: Image): String =
-    "\n" + (
-      for {
-        row <- 0 until image.rows
-        col <- 0 until image.columns
-      }
-        yield (image.data(row)(col) match {
-          case true => "*"
-          case false => " "
-        }) + (if (col == image.columns - 1) "\n" else "")
-    ).mkString("")
 }

@@ -11,4 +11,10 @@ case class Image(val data: Vector[Vector[Boolean]]) {
 
   def rows = data.length
   def columns = data(0).length
+
+  override def toString(): String = {
+    s"\n${data.map(row =>
+      s"|${row.map(if (_) "*" else " ").mkString}|\n"
+    ).mkString}"
+  }
 }
