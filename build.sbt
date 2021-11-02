@@ -19,5 +19,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
   "org.scalameta" %% "munit" % "0.7.22" % Test,
   "com.fazecast" % "jSerialComm" % "[2.0.0,3.0.0)",
-  "com.github.nscala-time" %% "nscala-time" % "2.30.0"
+  "com.github.nscala-time" %% "nscala-time" % "2.30.0",
+  "org.scalactic" %% "scalactic" % "3.2.10",
+  "org.scalatest" %% "scalatest" % "3.2.10" % "test"
 )

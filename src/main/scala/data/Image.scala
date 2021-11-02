@@ -1,6 +1,7 @@
 package data
 
-object Image {}
+object Image {
+}
 
 case class Image(val data: Vector[Vector[Boolean]]) {
   require(data.length > 0)
@@ -11,6 +12,18 @@ case class Image(val data: Vector[Vector[Boolean]]) {
 
   def rows = data.length
   def columns = data(0).length
+
+  def transpose(): Image = {
+    Image(data.transpose)
+  }
+
+  def reverseRows(): Image = {
+    Image(data.map(_.reverse))
+  }
+
+  def rotate90(): Image = {
+    transpose().reverseRows()
+  }
 
   override def toString(): String = {
     s"\n${data.map(row =>
