@@ -32,6 +32,7 @@ object App {
     val bottomImages = clockSource(1 day)
       .via(timeRenderer(DateTimeFormat.forPattern("EEE, MMM d")))
       .via(textToImageFlow(size))
+      .via(rotate180Flow())
       .map(("bottom", _))
 
     topImages ~> merge
@@ -80,6 +81,9 @@ object App {
 
   def textToImageFlow(size: (Int, Int)): Flow[String, Image, NotUsed] =
     Flow[String].map(textToImage(size, _))
+
+  def rotate180Flow(): Flow[Image, Image, NotUsed] =
+    Flow[Image].map(_.rotate90().rotate90())
 
   def signFlow(address: Int, size: (Int, Int)): Flow[Image, Seq[Byte], NotUsed] =
     Flow[Image].map(image => size match {
