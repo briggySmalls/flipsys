@@ -20,7 +20,7 @@ object ImageWriter {
     graphics.setColor(Color.WHITE)
     graphics.drawString(text, 0, 5)
     val first = newImage.getRGB(1, 0)
-    new Image(Vector.tabulate(size._2, size._1)((y, x) =>
+    Image(Vector.tabulate(size._2, size._1)((y, x) =>
       new Color(newImage.getRGB(x, y)) == Color.WHITE
     ))
   }

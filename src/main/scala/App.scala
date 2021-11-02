@@ -32,6 +32,7 @@ object App {
     val bottomImages = clockSource(1 day)
       .via(timeRenderer(DateTimeFormat.forPattern("EEE, MMM d")))
       .via(textToImageFlow(size))
+      .via(rotate180Flow())
       .map(("bottom", _))
 
     topImages ~> merge
@@ -61,7 +62,7 @@ object App {
           Flow[(String, Image)]
             .filter(_._1 == id)
             .map(_._2)
-            .log(id, drawImage(_))
+            .log(id, _.toString())
             .via(signFlow(address, size))
         )
       })
@@ -81,6 +82,9 @@ object App {
   def textToImageFlow(size: (Int, Int)): Flow[String, Image, NotUsed] =
     Flow[String].map(textToImage(size, _))
 
+  def rotate180Flow(): Flow[Image, Image, NotUsed] =
+    Flow[Image].map(_.rotate90().rotate90())
+
   def signFlow(address: Int, size: (Int, Int)): Flow[Image, Seq[Byte], NotUsed] =
     Flow[Image].map(image => size match {
         case (width, _) if (width != image.columns) => throw new Error(s"Incompatible image width (${image.columns}, should be ${width})")
@@ -89,16 +93,4 @@ object App {
           DrawImage(address, image).bytes
         }
       })
-
-  def drawImage(image: Image): String =
-    "\n" + (
-      for {
-        row <- 0 until image.rows
-        col <- 0 until image.columns
-      }
-        yield (image.image(row)(col) match {
-          case true => "*"
-          case false => " "
-        }) + (if (col == image.columns - 1) "\n" else "")
-    ).mkString("")
 }
