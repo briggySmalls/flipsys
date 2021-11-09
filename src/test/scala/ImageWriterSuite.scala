@@ -1,4 +1,5 @@
 import ImageWriter.textToImage
+import data.Image
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import utils.ImageBuilder
