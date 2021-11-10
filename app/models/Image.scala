@@ -1,5 +1,6 @@
 package models
 
+import java.awt.font.FontRenderContext
 import java.awt.{Color, Font}
 import java.awt.image.BufferedImage
 import java.io.InputStream
@@ -48,18 +49,26 @@ object Image {
 
 
   def fromText(size: (Int, Int), text: String): Image = {
+    val (width, height) = size
     // Create a new, blank image
     val newImage =
-      new BufferedImage(size._1, size._2, BufferedImage.TYPE_BYTE_BINARY)
+      new BufferedImage(width, height, BufferedImage.TYPE_BYTE_BINARY)
     val graphics = newImage.createGraphics()
     graphics.setColor(Color.BLACK)
-    graphics.fillRect(0, 0, size._1, size._2)
+    graphics.fillRect(0, 0, width, height)
     //Font settings
     graphics.setFont(font)
     //Add characters
     graphics.setColor(Color.WHITE)
-    graphics.drawString(text, 0, 5)
-    val first = newImage.getRGB(1, 0)
+    val frc = new FontRenderContext(null, false, false)
+    val metrics = font.getLineMetrics(text, frc)
+    val bounds = font.getStringBounds(text, frc)
+    graphics.drawString(
+      text,
+      math.round((width - bounds.getWidth) / 2),
+      math.round(math.max((height - bounds.getHeight) / 2, 0) + metrics.getAscent))
+
+
     Image(
       Vector.tabulate(size._2, size._1)((y, x) =>
         new Color(newImage.getRGB(x, y)) == Color.WHITE

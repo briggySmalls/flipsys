@@ -35,5 +35,5 @@ object ClockService {
     Flow[DateTime].map(dt => format.print(dt))
 
   private def textToImageFlow(size: (Int, Int)): Flow[String, Image, NotUsed] =
-    Flow[String].map(Image.fromText(size, _))
+    Flow[String].map(s => Image.fromText(size, s.toUpperCase()))
 }

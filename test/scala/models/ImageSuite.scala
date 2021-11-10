@@ -35,11 +35,11 @@ class ImageSuite extends AnyFlatSpec with Matchers {
   it should "create simple text" in {
     Image.fromText((20, 7), "Hello") should equal (ImageBuilder.fromStringArt(
       """
-        |*  *      * *       |
-        |*  *  *** * *  **   |
-        |**** *  * * * *  *  |
-        |*  * * *  * * *  *  |
-        |*  *  *** * *  **   |
+        | *  *      * *      |
+        | *  *  *** * *  **  |
+        | **** *  * * * *  * |
+        | *  * * *  * * *  * |
+        | *  *  *** * *  **  |
         |                    |
         |                    |
         |""".stripMargin
