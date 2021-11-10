@@ -1,4 +1,4 @@
-package data
+package models
 
 object Packet {
   private def imageToInts(image: Image): Seq[Int] = {

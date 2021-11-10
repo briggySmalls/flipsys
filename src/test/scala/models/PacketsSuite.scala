@@ -1,6 +1,6 @@
-package data
+package models
 
-import data.Packet._
+import models.Packet._
 
 class PacketsSuite extends munit.FunSuite {
   test("no payload packet bytes") {

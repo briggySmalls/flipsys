@@ -1,4 +1,4 @@
-package data
+package models
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

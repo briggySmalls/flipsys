@@ -1,11 +1,12 @@
-import ImageWriter.textToImage
+import services.ImageWriter.textToImage
 import akka.NotUsed
 import akka.stream.{ClosedShape, SinkShape, SourceShape}
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink, Source, Zip}
 import com.github.nscala_time.time.Imports.{DateTime, DateTimeFormat}
-import data.Image
-import data.Packet.DrawImage
+import models.Image
+import models.Packet.DrawImage
 import org.joda.time.format.DateTimeFormatter
+import services.GameOfLife
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -57,7 +58,7 @@ object App {
 
   def bigGameOfLifeSource(interval: FiniteDuration, seed: Image): Source[(String, Image), _] =
     splitImages(Source.tick(0 second, interval, "tick").statefulMapConcat({() =>
-      var gol = GameOfLife(seed)
+      var gol = services.GameOfLife(seed)
       _ =>
           val output = gol.image
           gol = gol.iterate()

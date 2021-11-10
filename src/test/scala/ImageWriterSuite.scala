@@ -1,5 +1,5 @@
-import ImageWriter.textToImage
-import data.Image
+import services.ImageWriter.textToImage
+import models.Image
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import utils.ImageBuilder

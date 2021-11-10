@@ -1,6 +1,6 @@
 package utils
 
-import data.Image
+import models.Image
 
 object ImageBuilder {
   def fromStringArt(text: String): Image = {
