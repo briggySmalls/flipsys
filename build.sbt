@@ -1,9 +1,8 @@
-testFrameworks += new TestFramework("munit.Framework")
-Test / parallelExecution := false
+name := "flipsys"
+version := "1.0-SNAPSHOT"
 
-val akkaVersion = "2.6.16"
+scalaVersion := Versions.scala
 
-scalaVersion := "2.13.5"
 scalacOptions ++= Seq(
   "-feature",
   "-deprecation",
@@ -13,13 +12,16 @@ scalacOptions ++= Seq(
   "-Xlint"
 )
 
+lazy val root = (project in file(".")).enablePlugins(PlayScala)
+
 libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-  "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
+  guice,
+  "com.typesafe.akka" %% "akka-actor" % Versions.akka,
+  "com.typesafe.akka" %% "akka-stream" % Versions.akka,
+  "com.typesafe.akka" %% "akka-testkit" % Versions.akka % Test,
   "org.scalameta" %% "munit" % "0.7.22" % Test,
-  "com.fazecast" % "jSerialComm" % "[2.0.0,3.0.0)",
-  "com.github.nscala-time" %% "nscala-time" % "2.30.0",
-  "org.scalactic" %% "scalactic" % "3.2.10",
-  "org.scalatest" %% "scalatest" % "3.2.10" % "test"
+  "com.fazecast" % "jSerialComm" % Versions.jSerialComm,
+  "com.github.nscala-time" %% "nscala-time" % Versions.nScalaTime,
+  "org.scalactic" %% "scalactic" % Versions.scalaTest,
+  "org.scalatest" %% "scalatest" % Versions.scalaTest % "test"
 )

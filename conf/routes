@@ -1,0 +1,1 @@
+GET /start/:mode controllers.HomeController.start(mode: String)

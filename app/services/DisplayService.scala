@@ -22,6 +22,9 @@ class DisplayService(val sources: Map[String, () => Source[DisplayPayload, _]], 
       .map(_ => ())
   }
 
+  def stop(): Unit =
+    killSwitch.foreach(_.shutdown())
+
   private def cancellableStream(source: Source[DisplayPayload, _]): KillSwitch =
     source
     .viaMat(KillSwitches.single)(Keep.right)
