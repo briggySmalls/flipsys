@@ -1,4 +1,4 @@
-package models
+package models.packet
 
 import java.nio.charset.StandardCharsets
 

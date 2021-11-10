@@ -1,6 +1,6 @@
-import akka.stream.Attributes
-import akka.stream.Inlet
-import akka.stream.SinkShape
+package clients
+
+import akka.stream.{Attributes, Inlet, SinkShape}
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, StageLogging}
 import com.fazecast.jSerialComm.SerialPort
 
@@ -8,7 +8,7 @@ import com.fazecast.jSerialComm.SerialPort
 class SerializerSink(port: String) extends GraphStage[SinkShape[Seq[Byte]]] {
   val comPort = SerialPort.getCommPort(port)
 
-  val in: Inlet[Seq[Byte]] = Inlet("SerializerSink")
+  val in: Inlet[Seq[Byte]] = Inlet("clients.SerializerSink")
   override val shape: SinkShape[Seq[Byte]] = SinkShape(in)
 
   override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =

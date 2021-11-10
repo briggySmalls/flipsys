@@ -1,6 +1,4 @@
-package services
-
-import models.Image
+package models
 
 case class GameOfLife(image: Image) {
   def iterate(): GameOfLife = {

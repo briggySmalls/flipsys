@@ -1,12 +1,11 @@
-import services.ImageWriter.textToImage
 import akka.NotUsed
 import akka.stream.{ClosedShape, SinkShape, SourceShape}
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink, Source, Zip}
+import clients.SerializerSink
 import com.github.nscala_time.time.Imports.{DateTime, DateTimeFormat}
-import models.Image
-import models.Packet.DrawImage
+import models.{GameOfLife, Image}
 import org.joda.time.format.DateTimeFormatter
-import services.GameOfLife
+import services.SignsService
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -27,7 +26,7 @@ object App {
       "top" -> (2, size),
       "bottom" -> (1, size),
     )
-    val sink = signsSink("dev/tty.usbserial-0001", signs)
+    val sink = SignsService.signsSink("dev/tty.usbserial-0001", signs)
 
     // Wire it up
     source ~> sink
@@ -58,7 +57,7 @@ object App {
 
   def bigGameOfLifeSource(interval: FiniteDuration, seed: Image): Source[(String, Image), _] =
     splitImages(Source.tick(0 second, interval, "tick").statefulMapConcat({() =>
-      var gol = services.GameOfLife(seed)
+      var gol = models.GameOfLife(seed)
       _ =>
           val output = gol.image
           gol = gol.iterate()
@@ -84,55 +83,16 @@ object App {
     })
   }
 
-  def signsSink(serialPort: String, signs: Map[String, (Int, (Int, Int))]): Sink[(String, Image), NotUsed] =
-    Sink.fromGraph(GraphDSL.create() { implicit builder =>
-      import GraphDSL.Implicits._
 
-      val sink = new SerializerSink(serialPort)
-      val broadcast = builder.add(Broadcast[(String, Image)](signs.size))
-      val signFlows = signs.map({
-        case (id, (address, size)) => builder.add(
-          Flow[(String, Image)]
-            .filter(_._1 == id)
-            .map(_._2)
-            .log(id, _.toString())
-            .via(signFlow(address, size))
-        )
-      })
-      val merge = builder.add(Merge[Seq[Byte]](signs.size))
-      val flip = builder.add(Flow[(String, Image)].map({case (id, image) =>
-        if (id == "top")
-          (id, image.rotate90().rotate90())
-        else
-          (id, image)
-      }))
-
-      flip ~> broadcast
-      signFlows.foreach( flow => {
-          broadcast ~> flow ~> merge
-      })
-      merge ~> sink
-
-      SinkShape.of(flip.in)
-    })
 
   def timeRenderer(format: DateTimeFormatter): Flow[DateTime, String, NotUsed] =
     Flow[DateTime].map(dt => format.print(dt))
 
   def textToImageFlow(size: (Int, Int)): Flow[String, Image, NotUsed] =
-    Flow[String].map(textToImage(size, _))
+    Flow[String].map(Image.fromText(size, _))
 
   def rotate180Flow(): Flow[Image, Image, NotUsed] =
     Flow[Image].map(_.rotate90().rotate90())
-
-  def signFlow(address: Int, size: (Int, Int)): Flow[Image, Seq[Byte], NotUsed] =
-    Flow[Image].map(image => size match {
-        case (width, _) if (width != image.columns) => throw new Error(s"Incompatible image width (${image.columns}, should be ${width})")
-        case (_, height) if (height != image.rows) => throw new Error(s"Incompatible image width (${image.rows}, should be ${height})")
-        case _ => {
-          DrawImage(address, image).bytes
-        }
-      })
 
   def splitImages(source: Source[Image, _]) =
     source.flatMapConcat(image => {
