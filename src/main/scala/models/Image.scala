@@ -2,6 +2,7 @@ package models
 
 import java.awt.{Color, Font}
 import java.awt.image.BufferedImage
+import java.io.InputStream
 
 case class Image(val data: Vector[Vector[Boolean]]) {
   require(data.length > 0)
@@ -33,6 +34,19 @@ case class Image(val data: Vector[Vector[Boolean]]) {
 }
 
 object Image {
+  val font = getFont()
+
+  def getFont(): Font =
+  {
+    val stream = getClass.getResourceAsStream("/Smirnof.ttf")
+    require(stream != null)
+    Font.createFont(
+      Font.TRUETYPE_FONT,
+      stream
+    ).deriveFont(8f)
+  }
+
+
   def fromText(size: (Int, Int), text: String): Image = {
     // Create a new, blank image
     val newImage =
@@ -41,14 +55,7 @@ object Image {
     graphics.setColor(Color.BLACK)
     graphics.fillRect(0, 0, size._1, size._2)
     //Font settings
-    graphics.setFont(
-      Font
-        .createFont(
-          Font.TRUETYPE_FONT,
-          getClass.getResourceAsStream("Smirnof.ttf")
-        )
-        .deriveFont(8f)
-    )
+    graphics.setFont(font)
     //Add characters
     graphics.setColor(Color.WHITE)
     graphics.drawString(text, 0, 5)
