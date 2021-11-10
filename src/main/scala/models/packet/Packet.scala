@@ -1,4 +1,41 @@
-package data
+package models.packet
+
+import models.Image
+
+class Packet(
+    val command: Int,
+    val address: Int,
+    val payloadOption: Option[Seq[Int]] = None
+) {
+  val startByte = 0x02.toByte
+  val endByte = 0x03.toByte
+
+  def bytes: Seq[Byte] = {
+    require(command < scala.math.pow(2, 8))
+    require(address < scala.math.pow(2, 8))
+    // Start with a single byte for the command and address respectively
+    var data: Seq[Byte] =
+      Seq(command, address).flatMap(
+        HanoverByte(_, isPadded = false).toAsciiHex()
+      )
+    // Add the payload bytes, if necessary
+    payloadOption match {
+      case None => {}
+      case Some(payload) =>
+        data ++= payload.flatMap(HanoverByte(_).toAsciiHex())
+    }
+    val checkSummedData = data :+ endByte
+    // Assemble together
+    (startByte +: checkSummedData) ++ HanoverByte(
+      _calculateChecksum(checkSummedData)
+    ).toAsciiHex()
+  }
+
+  def _calculateChecksum(input: Seq[Byte]): Int = {
+    val totalClipped = input.sum.toByte & 0xff
+    (((totalClipped ^ 0xff) + 1) & 0xff)
+  }
+}
 
 object Packet {
   private def imageToInts(image: Image): Seq[Int] = {
@@ -43,39 +80,4 @@ object Packet {
   object StopTestSigns extends Packet(12, 0)
   case class DrawImage(override val address: Int, image: Image)
       extends Packet(1, address, payloadOption = Some(imageToInts(image)))
-}
-
-class Packet(
-    val command: Int,
-    val address: Int,
-    val payloadOption: Option[Seq[Int]] = None
-) {
-  val startByte = 0x02.toByte
-  val endByte = 0x03.toByte
-
-  def bytes: Seq[Byte] = {
-    require(command < scala.math.pow(2, 8))
-    require(address < scala.math.pow(2, 8))
-    // Start with a single byte for the command and address respectively
-    var data: Seq[Byte] =
-      Seq(command, address).flatMap(
-        HanoverByte(_, isPadded = false).toAsciiHex()
-      )
-    // Add the payload bytes, if necessary
-    payloadOption match {
-      case None => {}
-      case Some(payload) =>
-        data ++= payload.flatMap(HanoverByte(_).toAsciiHex())
-    }
-    val checkSummedData = data :+ endByte
-    // Assemble together
-    (startByte +: checkSummedData) ++ HanoverByte(
-      _calculateChecksum(checkSummedData)
-    ).toAsciiHex()
-  }
-
-  def _calculateChecksum(input: Seq[Byte]): Int = {
-    val totalClipped = input.sum.toByte & 0xff
-    (((totalClipped ^ 0xff) + 1) & 0xff)
-  }
 }

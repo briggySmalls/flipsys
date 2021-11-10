@@ -1,13 +1,14 @@
-import data.Image
+package models
+
 import org.scalatest._
-import flatspec._
-import matchers.should._
+import org.scalatest.flatspec._
+import org.scalatest.matchers.should._
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import utils.ImageBuilder
 
 import scala.annotation.tailrec
 
-class GameOfLifeSuite  extends AnyFlatSpec with Matchers {
+class GameOfLifeSuite extends AnyFlatSpec with Matchers {
   val block = ImageBuilder.fromStringArt(
     """
       |    |
@@ -64,13 +65,13 @@ class GameOfLifeSuite  extends AnyFlatSpec with Matchers {
 
   "An oscillator" should "repeat" in {
     forAll(oscillators) { oscillator =>
-      val iterations = getIterations(GameOfLife(oscillator(0)), 5)
+      val iterations = getIterations(models.GameOfLife(oscillator(0)), 5)
       iterations should equal ((for(_ <- 0 until 3; frame <- oscillator) yield frame).tail)
     }
   }
 
   "A game" should "play" in {
-    var gol = GameOfLife(blinker(0))
+    var gol = models.GameOfLife(blinker(0))
     for (_ <- 0 to 5) {
       println(gol.image)
       gol = gol.iterate()
@@ -87,7 +88,7 @@ class GameOfLifeSuite  extends AnyFlatSpec with Matchers {
     _getIterations(gol.iterate(), Seq[Image](), iterations)
   }
 
-//  private def getIterations(gol: GameOfLife, iterations: Int): Seq[Image] = {
+//  private def getIterations(gol: models.GameOfLife, iterations: Int): Seq[Image] = {
 //    var internalGol = gol
 //    for {
 //      _ <- 0 until iterations
