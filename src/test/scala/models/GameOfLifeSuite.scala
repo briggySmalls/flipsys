@@ -1,13 +1,14 @@
-import models.{GameOfLife, Image}
+package models
+
 import org.scalatest._
-import flatspec._
-import matchers.should._
+import org.scalatest.flatspec._
+import org.scalatest.matchers.should._
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import utils.ImageBuilder
 
 import scala.annotation.tailrec
 
-class GameOfLifeSuite  extends AnyFlatSpec with Matchers {
+class GameOfLifeSuite extends AnyFlatSpec with Matchers {
   val block = ImageBuilder.fromStringArt(
     """
       |    |

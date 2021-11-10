@@ -6,9 +6,10 @@ import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink}
 import clients.SerializerSink
 import models.Image
 import models.packet.Packet.DrawImage
+import services.StreamTypes.DisplayPayload
 
 object SignsService {
-  def signsSink(serialPort: String, signs: Map[String, (Int, (Int, Int))]): Sink[(String, Image), NotUsed] =
+  def signsSink(serialPort: String, signs: Map[String, (Int, (Int, Int))]): Sink[DisplayPayload, NotUsed] =
     Sink.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
