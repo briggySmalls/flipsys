@@ -13,7 +13,7 @@ import scala.language.postfixOps
 import scala.util.Random
 
 object GameOfLifeService {
-  def source(signs: Seq[SignConfig]): Source[DisplayPayload, Cancellable] = {
+  def source(signs: Seq[SignConfig]): Source[DisplayPayload, NotUsed] = {
     val sizes = signs.map(_.size)
     // Ensure images are vertically stackable
     require(sizes.map(_._1).forall(_ == sizes.head._1))
@@ -29,14 +29,11 @@ object GameOfLifeService {
     simpleSource(2 seconds, seed).via(splitImages(signs))
   }
 
-  private def simpleSource(interval: FiniteDuration, seed: Image): Source[Image, Cancellable] =
-    Source.tick(0 second, interval, "tick").statefulMapConcat({() =>
-      var gol = models.GameOfLife(seed)
-      _ =>
-          val output = gol.image
-          gol = gol.iterate()
-          (output :: Nil)
-    })
+  private def simpleSource(interval: FiniteDuration, seed: Image): Source[Image, NotUsed] = {
+    Source.unfold(models.GameOfLife(seed)) { current =>
+      Some(current.iterate(), current.image)
+    }
+  }
 
   private def splitImages(signs: Seq[SignConfig]): Flow[Image, DisplayPayload, NotUsed] = {
     Flow[Image].mapConcat(image => {
