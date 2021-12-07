@@ -1,13 +1,14 @@
 package services
 
 import akka.actor.ActorSystem
+import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class ApplicationService @Inject() (lifecycle: ApplicationLifecycle) {
+class ApplicationService @Inject() (lifecycle: ApplicationLifecycle) extends Logging {
   private val size = (84, 7)
   private val signs = Seq(
     "top" -> (2, size),
@@ -26,9 +27,13 @@ class ApplicationService @Inject() (lifecycle: ApplicationLifecycle) {
     new DisplayService(sources, sink)
   }
 
-  def start(source: String): Either[String, Unit] = display.start(source)
+  def start(source: String): Either[String, Unit] = {
+    logger.info(s"Starting source $source")
+    display.start(source)
+  }
 
   lifecycle.addStopHook({
+    // Wrap up when we're done
     () => Future.successful(display.stop())
   })
 
