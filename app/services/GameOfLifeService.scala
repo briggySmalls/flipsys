@@ -3,6 +3,7 @@ package services
 import akka.NotUsed
 import akka.actor.Cancellable
 import akka.stream.scaladsl.{Flow, Source}
+import config.SignConfig
 import models.Image
 import services.StreamTypes.DisplayPayload
 
@@ -12,12 +13,12 @@ import scala.language.postfixOps
 import scala.util.Random
 
 object GameOfLifeService {
-  def source(signs: Seq[(String, (Int, Int))]): Source[DisplayPayload, Cancellable] = {
-    val firstCols = signs.head._2 match {
-      case (cols, _) => cols
-    }
-    val totalSize = signs.foldLeft((firstCols, 0))({
-      case ((totalCols, totalRows), (_, (cols, rows))) =>
+  def source(signs: Seq[SignConfig]): Source[DisplayPayload, Cancellable] = {
+    val sizes = signs.map(_.size)
+    // Ensure images are vertically stackable
+    require(sizes.map(_._1).forall(_ == sizes.head._1))
+    val totalSize = sizes.foldLeft((sizes.head._1, 0))({
+      case ((totalCols, totalRows), (cols, rows)) =>
         require(cols == totalCols)
         (totalCols, totalRows + rows)
     })
@@ -37,12 +38,12 @@ object GameOfLifeService {
           (output :: Nil)
     })
 
-  private def splitImages(signs: Seq[(String, (Int, Int))]): Flow[Image, DisplayPayload, NotUsed] = {
+  private def splitImages(signs: Seq[SignConfig]): Flow[Image, DisplayPayload, NotUsed] = {
     Flow[Image].mapConcat(image => {
-      signs.foldLeft(Seq(("rest", image)))({ case (images, (name, (_, row))) =>
+      signs.foldLeft(Seq(("rest", image)))({ case (images, config) =>
         val (init, (restName, lastImage)) = (images.init, images.last)
-        val (split, rest) = lastImage.data.splitAt(row)
-        val processed = init :+ (name, Image(split))
+        val (split, rest) = lastImage.data.splitAt(config.size._2)
+        val processed = init :+ (config.name, Image(split))
 
         if (rest.isEmpty) processed
         else processed :+ (restName, Image(rest))

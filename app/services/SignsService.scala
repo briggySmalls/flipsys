@@ -4,24 +4,25 @@ import akka.NotUsed
 import akka.stream.SinkShape
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink}
 import clients.SerializerSink
+import config.SignConfig
 import models.Image
 import models.packet.Packet.DrawImage
 import services.StreamTypes.DisplayPayload
 
 object SignsService {
-  def signsSink(serialPort: String, signs: Map[String, (Int, (Int, Int))]): Sink[DisplayPayload, NotUsed] =
+  def signsSink(serialPort: String, signs: Seq[SignConfig]): Sink[DisplayPayload, NotUsed] =
     Sink.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
       val sink = new SerializerSink(serialPort)
       val broadcast = builder.add(Broadcast[(String, Image)](signs.size))
-      val signFlows = signs.map({
-        case (id, (address, size)) => builder.add(
+      val signFlows = signs.map(c => {
+        builder.add(
           Flow[(String, Image)]
-            .filter(_._1 == id)
+            .filter(_._1 == c.name)
             .map(_._2)
-            .log(id, _.toString())
-            .via(signFlow(address, size))
+            .log(c.name, _.toString())
+            .via(signFlow(c))
         )
       })
       val merge = builder.add(Merge[Seq[Byte]](signs.size))
@@ -41,12 +42,12 @@ object SignsService {
       SinkShape.of(flip.in)
     })
 
-  def signFlow(address: Int, size: (Int, Int)): Flow[Image, Seq[Byte], NotUsed] =
-    Flow[Image].map(image => size match {
+  def signFlow(config: SignConfig): Flow[Image, Seq[Byte], NotUsed] =
+    Flow[Image].map(image => config.size match {
         case (width, _) if (width != image.columns) => throw new Error(s"Incompatible image width (${image.columns}, should be ${width})")
         case (_, height) if (height != image.rows) => throw new Error(s"Incompatible image width (${image.rows}, should be ${height})")
         case _ => {
-          DrawImage(address, image).bytes
+          DrawImage(config.address, image).bytes
         }
       })
 }

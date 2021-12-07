@@ -5,6 +5,7 @@ import akka.actor.Cancellable
 import akka.stream.SourceShape
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Source}
 import com.github.nscala_time.time.Imports.DateTime
+import config.SignConfig
 import models.{GameOfLife, Image}
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 
@@ -13,18 +14,18 @@ import scala.language.postfixOps
 import scala.concurrent.duration.FiniteDuration
 
 object ClockService {
-  def calendarSource(signs: Seq[(String, (Int, Int))]): Source[(String, Image), NotUsed] = {
-    require(signs.length == 2)
+  def calendarSource(signs: Seq[SignConfig]): Source[(String, Image), NotUsed] = {
+    require(signs.size == 2)
 
     Source.combine(
       clockSource(2 seconds)
         .via(timeRenderer(DateTimeFormat.forPattern("HH:mm:ss")))
-        .via(textToImageFlow(signs.head._2))
-        .map((signs.head._1, _)),
+        .via(textToImageFlow(signs.head.size))
+        .map((signs.head.name, _)),
       clockSource(1 day)
         .via(timeRenderer(DateTimeFormat.forPattern("EEE, MMM d")))
-        .via(textToImageFlow(signs(1)._2))
-        .map((signs(1)._1, _))
+        .via(textToImageFlow(signs(1).size))
+        .map((signs(1).name, _))
     )(Merge(_))
   }
 

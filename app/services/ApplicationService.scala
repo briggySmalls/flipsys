@@ -1,28 +1,24 @@
 package services
 
 import akka.actor.ActorSystem
-import play.api.Logging
+import config.ApplicationSettings
+import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class ApplicationService @Inject() (lifecycle: ApplicationLifecycle) extends Logging {
-  private val size = (84, 7)
-  private val signs = Seq(
-    "top" -> (2, size),
-    "bottom" -> (1, size),
-  )
-  private val signsNoAddress = signs.map({ case (name, (address, size)) => (name, size) })
+class ApplicationService @Inject() (config: Configuration, lifecycle: ApplicationLifecycle) extends Logging {
+  private val conf = config.get[ApplicationSettings]("flipsys")
 
   private val display = {
     implicit val system: ActorSystem = ActorSystem("flipsys")
 
-    val sink = { () => SignsService.signsSink("dev/tty.usbserial-0001", signs.toMap) }
+    val sink = { () => SignsService.signsSink("dev/tty.usbserial-0001", conf.signs) }
     val sources = Map(
-      "gameOfLife" -> { () => GameOfLifeService.source(signsNoAddress) },
-      "clock" -> { () => ClockService.calendarSource(signsNoAddress) }
+      "gameOfLife" -> { () => GameOfLifeService.source(conf.signs) },
+      "clock" -> { () => ClockService.calendarSource(conf.signs) }
     )
     new DisplayService(sources, sink)
   }
