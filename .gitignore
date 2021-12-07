@@ -4,6 +4,7 @@ project/boot/
 project/project/
 project/target/
 # Ignore editor stuff
+.idea/
 .vscode/
 **/.metals/
 **/.bloop/
