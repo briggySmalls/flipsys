@@ -16,10 +16,10 @@ class SerializerSink(port: String) extends GraphStage[SinkShape[Seq[Byte]]] {
 
       override def preStart(): Unit = {
         // Open the port
-        log.debug("Opening port...")
+        log.info(s"Opening port: '$port'")
         comPort.setComPortParameters(4800, 8, 1, 0)
         comPort.openPort()
-        log.debug("Port opened!")
+        log.info("Port opened!")
         // Request first element
         pull(in)
       }
