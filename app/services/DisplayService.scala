@@ -2,32 +2,33 @@ package services
 
 import akka.actor.Cancellable
 import akka.stream.{KillSwitch, KillSwitches, Materializer}
-import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.stream.scaladsl.{Keep, MergeHub, Sink, Source}
 import services.StreamTypes.DisplayPayload
 
 import scala.util.chaining.scalaUtilChainingOps
 
 
 
-class DisplayService(val sources: Map[String, () => Source[DisplayPayload, _]], val sink: () => Sink[DisplayPayload, _])(implicit materializer: Materializer) {
-  var killSwitch: Option[KillSwitch] = None
+class DisplayService(val sources: Map[String, () => Source[DisplayPayload, Cancellable]], val sink: () => Sink[DisplayPayload, _])(implicit materializer: Materializer) {
+  // Create a mergehub so we can dynamically swap inputs
+  private val mergedSource = MergeHub.source[DisplayPayload]
+  private val mergedSink = mergedSource.to(sink()).run()
+  private var cancellable: Option[Cancellable] = None // State of currently running source
 
   def start(source: String): Either[String, Unit] = {
-    killSwitch.foreach(_.shutdown())
     sources
       .get(source)
       .toRight(s"Source $source not recognised")
-      .map(s => cancellableStream(s()))
-      .tap(e => killSwitch = e.toOption)
-      .map(_ => ())
+      .map(s => {
+        // Cancel the current, if running
+        stop()
+        // Start the new
+        s().to(mergedSink).run()
+      })
+      .tap(c => cancellable = c.toOption)
+      .map(c => ())
   }
 
   def stop(): Unit =
-    killSwitch.foreach(_.shutdown())
-
-  private def cancellableStream(source: Source[DisplayPayload, _]): KillSwitch =
-    source
-    .viaMat(KillSwitches.single)(Keep.right)
-    .to(sink())
-    .run()
+    cancellable.map(_.cancel())
 }
