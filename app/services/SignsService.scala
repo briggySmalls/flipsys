@@ -14,15 +14,16 @@ object SignsService {
     Sink.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
-      val sink = new SerializerSink(serialPort)
+      val sink = new SerializerSink(serialPort)  // Sink bytes through the serial port
       val broadcast = builder.add(Broadcast[(String, Image)](signs.size))
+      // Create a flow per sign
       val signFlows = signs.map(c => {
         builder.add(
           Flow[(String, Image)]
-            .filter(_._1 == c.name)
-            .map(_._2)
+            .filter(_._1 == c.name) // Listen to specific sign
+            .map(_._2)  // Take the image
             .log(c.name, _.toString())
-            .via(signFlow(c))
+            .via(signFlow(c))  // Transform to bytes
         )
       })
       val merge = builder.add(Merge[Seq[Byte]](signs.size))
@@ -42,7 +43,7 @@ object SignsService {
       SinkShape.of(flip.in)
     })
 
-  def signFlow(config: SignConfig): Flow[Image, Seq[Byte], NotUsed] =
+  private def signFlow(config: SignConfig): Flow[Image, Seq[Byte], NotUsed] =
     Flow[Image].map(image => config.size match {
         case (width, _) if (width != image.columns) => throw new Error(s"Incompatible image width (${image.columns}, should be ${width})")
         case (_, height) if (height != image.rows) => throw new Error(s"Incompatible image width (${image.rows}, should be ${height})")
