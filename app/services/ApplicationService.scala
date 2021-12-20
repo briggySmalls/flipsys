@@ -15,7 +15,7 @@ class ApplicationService @Inject() (config: Configuration, lifecycle: Applicatio
   private val display = {
     implicit val system: ActorSystem = ActorSystem("flipsys")
 
-    val sink = { () => SignsService.signsSink(conf.port, conf.signs) }
+    val sink = SignsService.signsSink(conf.port, conf.signs)
     val sources = Map(
       "gameOfLife" -> { () => GameOfLifeService.source(conf.signs) },
       "clock" -> { () => ClockService.calendarSource(conf.signs) }
