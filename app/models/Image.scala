@@ -1,19 +1,21 @@
 package models
 
 import java.awt.font.FontRenderContext
+import java.awt.geom.Rectangle2D
 import java.awt.{Color, Font}
 import java.awt.image.BufferedImage
 import java.io.InputStream
+import scala.annotation.tailrec
 
 case class Image(val data: Vector[Vector[Boolean]]) {
-  require(data.length > 0)
+  require(data.nonEmpty)
   require({
     val lengths = data.map(_.length)
     lengths.forall(_ == lengths.head)
   })
 
-  def rows = data.length
-  def columns = data(0).length
+  def rows: Int = data.length
+  def columns: Int = data(0).length
 
   def transpose(): Image = {
     Image(data.transpose)
@@ -27,7 +29,7 @@ case class Image(val data: Vector[Vector[Boolean]]) {
     transpose().reverseRows()
   }
 
-  override def toString(): String = {
+  override def toString: String = {
     s"\n${data.map(row =>
       s"|${row.map(if (_) "*" else " ").mkString}|\n"
     ).mkString}"
@@ -35,9 +37,7 @@ case class Image(val data: Vector[Vector[Boolean]]) {
 }
 
 object Image {
-  val font = getFont()
-
-  def getFont(): Font =
+  val font: Font =
   {
     val stream = getClass.getResourceAsStream("/Smirnof.ttf")
     require(stream != null)
@@ -46,7 +46,6 @@ object Image {
       stream
     ).deriveFont(8f)
   }
-
 
   def fromText(size: (Int, Int), text: String): Image = {
     val (width, height) = size
@@ -58,21 +57,48 @@ object Image {
     graphics.fillRect(0, 0, width, height)
     //Font settings
     graphics.setFont(font)
-    //Add characters
     graphics.setColor(Color.WHITE)
-    val frc = new FontRenderContext(null, false, false)
-    val metrics = font.getLineMetrics(text, frc)
-    val bounds = font.getStringBounds(text, frc)
+    val metrics = graphics.getFontMetrics()
+    //Add characters
+    val bounds = getTextBounds(text)
     graphics.drawString(
       text,
       math.round((width - bounds.getWidth) / 2),
       math.round(math.max((height - bounds.getHeight) / 2, 0) + metrics.getAscent))
-
 
     Image(
       Vector.tabulate(size._2, size._1)((y, x) =>
         new Color(newImage.getRGB(x, y)) == Color.WHITE
       )
     )
+  }
+
+  def frames(size: (Int, Int), text: String): Either[String, Seq[Image]] = {
+    splitToFrames(size._1, text).map(_.map(fromText(size, _)))
+  }
+
+  private def splitToFrames(width: Int, text: String): Either[String, Seq[String]] = {
+    // Helper function for determining if text fits in a frame
+    def testIfFits(text: String): Boolean = getTextBounds(text).getWidth < width
+
+    @tailrec
+    def _splitToFrames(words: Seq[String], frames: Seq[String], pending: String): Either[String, Seq[String]] = {
+      words match {
+        case Nil =>
+          if (testIfFits(pending)) Right(frames :+ pending)
+          else Left(s"Word '$pending' doesn't fit in a frame")
+        case s +: tail =>
+          val next = s"$pending $s".trim
+          if (testIfFits(next)) _splitToFrames(tail, frames, next)  // Still not reached end of the frame
+          else if (next == s) Left(s"Word '$s' doesn't fit in a frame")
+          else _splitToFrames(tail, frames :+ pending, s) // Word $s was 1 word too many
+      }
+    }
+    _splitToFrames(text.split(' ').toSeq, Seq[String](), "")
+  }
+
+  private def getTextBounds(text: String): Rectangle2D = {
+    val frc = new FontRenderContext(null, false, false)
+    font.getStringBounds(text, frc)
   }
 }

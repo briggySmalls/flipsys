@@ -2,9 +2,11 @@ package models
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
+import org.scalatest.prop.TableDrivenPropertyChecks.Table
 import utils.ImageBuilder
 
-class ImageSuite extends AnyFlatSpec with Matchers {
+class ImageSuite extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   "An image" should "be rotatable" in {
     val testImage = ImageBuilder.fromStringArt(
       """
@@ -44,5 +46,38 @@ class ImageSuite extends AnyFlatSpec with Matchers {
         |                    |
         |""".stripMargin
     ))
+  }
+
+  val frameTestTable: TableFor3[(Int, Int), String, Either[String, Seq[Image]]] = Table(
+      ("size", "text", "expected"),
+      ((20, 7), "Hellooo world", Left("Word 'Hellooo' doesn't fit in a frame")),
+      ((20, 7), "Hello world", Left("Word 'world' doesn't fit in a frame")),
+      ((20, 7), "Hello dolly", Right(Seq(
+        ImageBuilder.fromStringArt("""
+          | *  *      * *      |
+          | *  *  *** * *  **  |
+          | **** *  * * * *  * |
+          | *  * * *  * * *  * |
+          | *  *  *** * *  **  |
+          |                    |
+          |                    |
+          |""".stripMargin
+        ),
+        ImageBuilder.fromStringArt("""
+          |    *      * *      |
+          |  ***  **  * * *  * |
+          | *  * *  * * * *  * |
+          | *  * *  * * * *  * |
+          |  ***  **  * *  *** |
+          |                  * |
+          |                **  |""".stripMargin
+        )
+      ))),
+    )
+
+  forAll(frameTestTable) { (size: (Int, Int), text: String, expected: Either[String, Seq[Image]]) =>
+    it should s"create frames for text '$text'" in {
+      Image.frames(size, text) should equal (expected)
+    }
   }
 }
