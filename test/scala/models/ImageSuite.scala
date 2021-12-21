@@ -23,20 +23,21 @@ class ImageSuite extends AnyFlatSpec with Matchers with TableDrivenPropertyCheck
         |""".stripMargin))
   }
 
-  "Image object" should "create empty image" in {
-    Image.fromText((4, 4), "") should equal (ImageBuilder.fromStringArt(
-      """
-        |    |
-        |    |
-        |    |
-        |    |
-        |""".stripMargin
-    ))
-  }
-
-  it should "create simple text" in {
-    Image.fromText((20, 7), "Hello") should equal (ImageBuilder.fromStringArt(
-      """
+  val frameTestTable: TableFor3[(Int, Int), String, Either[String, Image]] = Table(
+      ("size", "text", "expected"),
+      ((4, 4), "overflow", Left("Word 'overflow' doesn't fit in a frame")),
+      ((25, 7), "too many", Left("Text 'too many' larger than a single frame")),
+      ((4, 4), "", Right(
+        ImageBuilder.fromStringArt("""
+          |    |
+          |    |
+          |    |
+          |    |
+          |""".stripMargin
+        )
+      )),
+      ((20, 7), "Hello", Right(
+        ImageBuilder.fromStringArt("""
         | *  *      * *      |
         | *  *  *** * *  **  |
         | **** *  * * * *  * |
@@ -45,10 +46,17 @@ class ImageSuite extends AnyFlatSpec with Matchers with TableDrivenPropertyCheck
         |                    |
         |                    |
         |""".stripMargin
-    ))
+        )
+      ))
+  )
+
+  forAll(frameTestTable) { (size, text, expected) =>
+    it should s"create single frame with '$text'" in {
+      Image.frame(size, text) should equal (expected)
+    }
   }
 
-  val frameTestTable: TableFor3[(Int, Int), String, Either[String, Seq[Image]]] = Table(
+  val framesTestTable: TableFor3[(Int, Int), String, Either[String, Seq[Image]]] = Table(
       ("size", "text", "expected"),
       ((20, 7), "Hellooo world", Left("Word 'Hellooo' doesn't fit in a frame")),
       ((20, 7), "Hello world", Left("Word 'world' doesn't fit in a frame")),
@@ -75,8 +83,8 @@ class ImageSuite extends AnyFlatSpec with Matchers with TableDrivenPropertyCheck
       ))),
     )
 
-  forAll(frameTestTable) { (size: (Int, Int), text: String, expected: Either[String, Seq[Image]]) =>
-    it should s"create frames for text '$text'" in {
+  forAll(framesTestTable) { (size: (Int, Int), text: String, expected: Either[String, Seq[Image]]) =>
+    it should s"create multiple frames for '$text'" in {
       Image.frames(size, text) should equal (expected)
     }
   }

@@ -17,7 +17,8 @@ object SignsService {
     Sink.fromGraph(GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
-      val sink = new SerializerSink(serialPort)  // Sink bytes through the serial port
+//      val sink = new SerializerSink(serialPort)  // Sink bytes through the serial port
+      val sink = Sink.ignore
       val broadcast = builder.add(Broadcast[(String, Image)](signs.size))
       // Create a flow per sign
       val signFlows = signs.map(c => {
