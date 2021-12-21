@@ -38,6 +38,13 @@ object ClockService {
   private def timeRenderer(format: DateTimeFormatter): Flow[DateTime, String, NotUsed] =
     Flow[DateTime].map(dt => format.print(dt))
 
-  private def textToImageFlow(size: (Int, Int)): Flow[String, Image, NotUsed] =
-    Flow[String].map(s => Image.fromText(size, s.toUpperCase()))
+  private def textToImageFlow(size: (Int, Int)): Flow[String, Image, NotUsed] = {
+    Flow[String].map(s => Image.frames(size, s.toUpperCase()).flatMap({
+      case head +: Nil => Right(head)
+      case _ => Left("Time larger than a single frame")
+    }))
+      .collect {
+        case Right(img) => img
+      }
+  }
 }
