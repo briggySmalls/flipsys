@@ -14,10 +14,6 @@ class ApplicationService @Inject() (
     lifecycle: ApplicationLifecycle
 ) extends Logging {
   private val conf = config.get[ApplicationSettings]("flipsys")
-  private val sources = Map(
-    "gameOfLife" -> { () => GameOfLifeService.source(conf.signs) },
-    "clock" -> { () => ClockService.calendarSource(conf.signs) }
-  )
 
   private val display = {
     implicit val system: ActorSystem = ActorSystem("flipsys")
@@ -26,12 +22,12 @@ class ApplicationService @Inject() (
     new DisplayService(sink)
   }
 
-  def start(source: String): Either[String, Unit] = {
-    logger.info(s"Starting source $source")
-    sources.get(source) match {
-      case Some(src) => Right(display.start(src()))
-      case None      => Left(s"Failed to find source $source")
-    }
+  def clock(): Unit = {
+    display.start(ClockService.calendarSource(conf.signs))
+  }
+
+  def gameOfLife(): Unit = {
+    display.start(GameOfLifeService.source(conf.signs))
   }
 
   lifecycle.addStopHook({
@@ -39,5 +35,5 @@ class ApplicationService @Inject() (
     () => Future.successful(display.stop())
   })
 
-  start("clock")
+  clock()
 }
