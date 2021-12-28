@@ -25,6 +25,10 @@ class ApplicationService @Inject() (config: Configuration, lifecycle: Applicatio
     display.start(GameOfLifeService.source(conf.signs))
   }
 
+  def message(sender: String, message: String): Unit = {
+    display.start(MessageService.messageSource(conf.signs, sender, message))
+  }
+
   lifecycle.addStopHook({
     // Wrap up when we're done
     () => Future.successful(display.stop())
