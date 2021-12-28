@@ -1,1 +1,2 @@
-GET /start/:mode controllers.HomeController.start(mode: String)
+GET /start/clock controllers.HomeController.clock()
+GET /start/gameOfLife controllers.HomeController.gameOfLife()

@@ -12,23 +12,17 @@ import scala.concurrent.Future
 class ApplicationService @Inject() (config: Configuration, lifecycle: ApplicationLifecycle) extends Logging {
   private val conf = config.get[ApplicationSettings]("flipsys")
 
-  private val sources = Map(
-    "gameOfLife" -> { () => GameOfLifeService.source(conf.signs) },
-    "clock" -> { () => ClockService.calendarSource(conf.signs) },
-  )
-
   private val display = {
     implicit val system: ActorSystem = ActorSystem("flipsys")
     new DisplayService(SignsService.signsSink(conf.port, conf.signs))
   }
 
-  def start(source: String): Either[String, Unit] = {
-    logger.info(s"Starting source $source")
+  def clock(): Unit = {
+    display.start(ClockService.calendarSource(conf.signs))
+  }
 
-    sources.get(source) match {
-      case None => Left(s"$source didnt match source")
-      case Some(s) => Right(display.start(s()))
-    }
+  def gameOfLife(): Unit = {
+    display.start(GameOfLifeService.source(conf.signs))
   }
 
   lifecycle.addStopHook({
@@ -36,5 +30,5 @@ class ApplicationService @Inject() (config: Configuration, lifecycle: Applicatio
     () => Future.successful(display.stop())
   })
 
-  start("clock")
+  clock()
 }
