@@ -2,10 +2,12 @@ package services
 
 import akka.NotUsed
 import akka.actor.Cancellable
-import akka.stream.scaladsl.{Flow, Source}
+import akka.stream.KillSwitches
+import akka.stream.scaladsl.{Flow, Keep, Source}
 import config.SignConfig
 import models.Image
 import services.StreamTypes.DisplayPayload
+import streams.CancellableKillSwitch
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
@@ -26,19 +28,15 @@ object GameOfLifeService {
     val seed = Image(Vector.tabulate(totalSize._2, totalSize._1)({
         case (_, _) => random.nextBoolean()
     }))
-    simpleSource(2 seconds, seed).via(splitImages(signs))
+    Source.unfold(models.GameOfLife(seed)) { current =>
+      Some(current.iterate(), current.image)
+    }
+      .viaMat(KillSwitches.single)(Keep.right)
+      .mapMaterializedValue(k => new CancellableKillSwitch(k))
+      .via(splitImages(signs))
   }
 
-  private def simpleSource(interval: FiniteDuration, seed: Image): Source[Image, Cancellable] =
-    Source.tick(0 second, interval, "tick").statefulMapConcat({() =>
-      var gol = models.GameOfLife(seed)
-      _ =>
-          val output = gol.image
-          gol = gol.iterate()
-          (output :: Nil)
-    })
-
-  private def splitImages(signs: Seq[SignConfig]): Flow[Image, DisplayPayload, NotUsed] = {
+  private def splitImages(signs: Seq[SignConfig]): Flow[Image, DisplayPayload, _] = {
     Flow[Image].mapConcat(image => {
       signs.foldLeft(Seq(("rest", image)))({ case (images, config) =>
         val (init, (restName, lastImage)) = (images.init, images.last)

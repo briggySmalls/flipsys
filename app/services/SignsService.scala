@@ -9,6 +9,9 @@ import models.Image
 import models.packet.Packet.DrawImage
 import services.StreamTypes.DisplayPayload
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 object SignsService {
   def signsSink(serialPort: String, signs: Seq[SignConfig]): Sink[DisplayPayload, NotUsed] =
     Sink.fromGraph(GraphDSL.create() { implicit builder =>
@@ -51,4 +54,5 @@ object SignsService {
           DrawImage(config.address, image).bytes
         }
       })
+        .throttle(1, 2 seconds) // A single sign can only handle images ata certain rate
 }
