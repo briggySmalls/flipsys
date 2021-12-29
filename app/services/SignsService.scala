@@ -1,9 +1,8 @@
 package services
 
 import akka.NotUsed
-import akka.stream.{FlowShape, SinkShape}
-import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink}
-import clients.SerializerSink
+import akka.stream.FlowShape
+import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge}
 import config.SignConfig
 import models.Image
 import models.packet.Packet.DrawImage

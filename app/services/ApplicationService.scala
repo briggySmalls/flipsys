@@ -1,7 +1,6 @@
 package services
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Sink
 import clients.SerializerSink
 import config.ApplicationSettings
 import play.api.{Configuration, Logging}

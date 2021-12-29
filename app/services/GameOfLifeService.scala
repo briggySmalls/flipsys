@@ -1,16 +1,11 @@
 package services
 
 import akka.NotUsed
-import akka.actor.Cancellable
-import akka.stream.KillSwitches
-import akka.stream.scaladsl.{Flow, Keep, Source}
+import akka.stream.scaladsl.{Flow, Source}
 import config.SignConfig
 import models.Image
 import services.StreamTypes.DisplayPayload
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.Random
 
 object GameOfLifeService {

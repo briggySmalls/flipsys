@@ -2,11 +2,10 @@ package services
 
 import akka.NotUsed
 import akka.actor.Cancellable
-import akka.stream.SourceShape
-import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Source}
+import akka.stream.scaladsl.{Flow, Source}
 import com.github.nscala_time.time.Imports.DateTime
 import config.SignConfig
-import models.{GameOfLife, Image}
+import models.Image
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import services.StreamTypes.DisplayPayload
 
