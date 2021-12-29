@@ -7,27 +7,21 @@ import services.StreamTypes.DisplayPayload
 
 import scala.util.chaining.scalaUtilChainingOps
 
-
-
-class DisplayService(val sources: Map[String, () => Source[DisplayPayload, _]], val sink: () => Sink[DisplayPayload, _])(implicit materializer: Materializer) {
+class DisplayService(
+    val sink: () => Sink[DisplayPayload, _]
+)(implicit materializer: Materializer) {
   var killSwitch: Option[KillSwitch] = None
 
-  def start(source: String): Either[String, Unit] = {
+  def start(source: Source[DisplayPayload, _]): Unit = {
     killSwitch.foreach(_.shutdown())
-    sources
-      .get(source)
-      .toRight(s"Source $source not recognised")
-      .map(s => cancellableStream(s()))
-      .tap(e => killSwitch = e.toOption)
-      .map(_ => ())
+    killSwitch = Some(
+      source
+        .viaMat(KillSwitches.single)(Keep.right)
+        .to(sink())
+        .run()
+    )
   }
 
   def stop(): Unit =
     killSwitch.foreach(_.shutdown())
-
-  private def cancellableStream(source: Source[DisplayPayload, _]): KillSwitch =
-    source
-    .viaMat(KillSwitches.single)(Keep.right)
-    .to(sink())
-    .run()
 }

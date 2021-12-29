@@ -9,23 +9,29 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class ApplicationService @Inject() (config: Configuration, lifecycle: ApplicationLifecycle) extends Logging {
+class ApplicationService @Inject() (
+    config: Configuration,
+    lifecycle: ApplicationLifecycle
+) extends Logging {
   private val conf = config.get[ApplicationSettings]("flipsys")
+  private val sources = Map(
+    "gameOfLife" -> { () => GameOfLifeService.source(conf.signs) },
+    "clock" -> { () => ClockService.calendarSource(conf.signs) }
+  )
 
   private val display = {
     implicit val system: ActorSystem = ActorSystem("flipsys")
 
     val sink = { () => SignsService.signsSink(conf.port, conf.signs) }
-    val sources = Map(
-      "gameOfLife" -> { () => GameOfLifeService.source(conf.signs) },
-      "clock" -> { () => ClockService.calendarSource(conf.signs) }
-    )
-    new DisplayService(sources, sink)
+    new DisplayService(sink)
   }
 
   def start(source: String): Either[String, Unit] = {
     logger.info(s"Starting source $source")
-    display.start(source)
+    sources.get(source) match {
+      case Some(src) => Right(display.start(src()))
+      case None      => Left(s"Failed to find source $source")
+    }
   }
 
   lifecycle.addStopHook({
