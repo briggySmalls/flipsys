@@ -2,6 +2,7 @@ name := "flipsys"
 version := "1.0-SNAPSHOT"
 
 scalaVersion := Versions.scala
+semanticdbEnabled := true // enable SemanticDB
 
 scalacOptions ++= Seq(
   "-feature",
