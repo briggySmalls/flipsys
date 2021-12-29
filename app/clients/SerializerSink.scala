@@ -1,5 +1,7 @@
 package clients
 
+import akka.NotUsed
+import akka.stream.scaladsl.Sink
 import akka.stream.{Attributes, Inlet, SinkShape}
 import akka.stream.stage.{GraphStage, GraphStageLogic, InHandler, StageLogging}
 import com.fazecast.jSerialComm.SerialPort
@@ -38,4 +40,8 @@ class SerializerSink(port: String) extends GraphStage[SinkShape[Seq[Byte]]] {
     }
 
   private def write(data: Seq[Byte]) = comPort.writeBytes(data.toArray, data.length)
+}
+
+object SerializerSink {
+  def apply(port: String): Sink[Seq[Byte], NotUsed] = Sink.fromGraph(new SerializerSink(port))
 }
