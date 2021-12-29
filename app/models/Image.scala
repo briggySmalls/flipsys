@@ -4,7 +4,6 @@ import java.awt.font.FontRenderContext
 import java.awt.geom.Rectangle2D
 import java.awt.{Color, Font}
 import java.awt.image.BufferedImage
-import java.io.InputStream
 import scala.annotation.tailrec
 
 case class Image(val data: Vector[Vector[Boolean]]) {

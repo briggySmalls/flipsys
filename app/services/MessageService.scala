@@ -1,10 +1,8 @@
 package services
 
-import akka.actor.Cancellable
-import akka.stream.KillSwitches
-import akka.stream.scaladsl.{Keep, Source}
+import akka.stream.scaladsl.Source
 import config.SignConfig
-import models.{CancellableKillSwitch, Image}
+import models.Image
 import services.StreamTypes.DisplayPayload
 
 object MessageService {
