@@ -1,15 +1,11 @@
 package services
 
 import akka.NotUsed
-import akka.actor.Cancellable
 import akka.stream.scaladsl.{Flow, Source}
 import config.SignConfig
 import models.Image
 import services.StreamTypes.DisplayPayload
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.Random
 
 object GameOfLifeService {
@@ -24,18 +20,18 @@ object GameOfLifeService {
     })
     val random = new Random()
     val seed = Image(Vector.tabulate(totalSize._2, totalSize._1)({
-        case (_, _) => random.nextBoolean()
+      case (_, _) => random.nextBoolean()
     }))
-    simpleSource(2 seconds, seed).via(splitImages(signs))
+    Source
+      .unfold(models.GameOfLife(seed)) { current =>
+        Some(current.iterate(), current.image)
+      }
+      .via(splitImages(signs))
   }
 
-  private def simpleSource(interval: FiniteDuration, seed: Image): Source[Image, NotUsed] = {
-    Source.unfold(models.GameOfLife(seed)) { current =>
-      Some(current.iterate(), current.image)
-    }
-  }
-
-  private def splitImages(signs: Seq[SignConfig]): Flow[Image, DisplayPayload, NotUsed] = {
+  private def splitImages(
+      signs: Seq[SignConfig]
+  ): Flow[Image, DisplayPayload, _] = {
     Flow[Image].mapConcat(image => {
       signs.foldLeft(Seq(("rest", image)))({ case (images, config) =>
         val (init, (restName, lastImage)) = (images.init, images.last)

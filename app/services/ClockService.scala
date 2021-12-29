@@ -2,34 +2,36 @@ package services
 
 import akka.NotUsed
 import akka.actor.Cancellable
-import akka.stream.SourceShape
-import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Source}
+import akka.stream.scaladsl.{Flow, Source}
 import com.github.nscala_time.time.Imports.DateTime
 import config.SignConfig
-import models.{GameOfLife, Image}
+import models.Image
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
+import services.StreamTypes.DisplayPayload
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.concurrent.duration.FiniteDuration
 
 object ClockService {
-  def calendarSource(signs: Seq[SignConfig]): Source[(String, Image), NotUsed] = {
+  def calendarSource(signs: Seq[SignConfig]): Source[(String, Image), Cancellable] = {
     require(signs.size == 2)
-
-    Source.combine(
-      clockSource(2 seconds)
-        .via(timeRenderer(DateTimeFormat.forPattern("HH:mm:ss")))
-        .via(textToImageFlow(signs.head.size))
-        .map((signs.head.name, _)),
-      clockSource(1 day)
-        .via(timeRenderer(DateTimeFormat.forPattern("EEE, MMM d")))
-        .via(textToImageFlow(signs(1).size))
-        .map((signs(1).name, _))
-    )(Merge(_))
+    clockSource(signs.head).merge(dateSource(signs(1)))
   }
 
-  private def clockSource(interval: FiniteDuration): Source[DateTime, Cancellable] =
+  private def clockSource(sign: SignConfig): Source[DisplayPayload, Cancellable] =
+    tickSource(2 seconds)
+        .via(timeRenderer(DateTimeFormat.forPattern("HH:mm:ss")))
+        .via(textToImageFlow(sign.size))
+        .map((sign.name, _))
+
+  private def dateSource(sign: SignConfig): Source[DisplayPayload, Cancellable] =
+    tickSource(1 day)
+        .via(timeRenderer(DateTimeFormat.forPattern("EEE, MMM d")))
+        .via(textToImageFlow(sign.size))
+        .map((sign.name, _))
+
+  private def tickSource(interval: FiniteDuration): Source[DateTime, Cancellable] =
     Source.tick(0 second, interval, "tick").map(_ => DateTime.now())
 
   private def timeRenderer(format: DateTimeFormatter): Flow[DateTime, String, NotUsed] =

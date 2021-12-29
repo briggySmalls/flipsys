@@ -3,7 +3,6 @@ package models
 import java.awt.font.FontRenderContext
 import java.awt.{Color, Font}
 import java.awt.image.BufferedImage
-import java.io.InputStream
 
 case class Image(val data: Vector[Vector[Boolean]]) {
   require(data.length > 0)
