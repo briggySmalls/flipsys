@@ -18,4 +18,10 @@ class HomeController @Inject() (cc: ControllerComponents, app: ApplicationServic
     app.gameOfLife()
     Ok("Success!")
   }
+
+  def message(sender: String, message: String) = Action { implicit request: Request[AnyContent] =>
+    logger.info(s"Message request (sender: '$sender', message: '$message')")
+    app.message(sender, message)
+    Ok("Success!")
+  }
 }

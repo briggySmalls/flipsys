@@ -1,7 +1,7 @@
 package services
 
 import akka.actor.ActorSystem
-import clients.SerializerSink
+import akka.stream.scaladsl.Sink
 import config.ApplicationSettings
 import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
@@ -18,7 +18,8 @@ class ApplicationService @Inject() (
 
   private val display = {
     implicit val system: ActorSystem = ActorSystem("flipsys")
-    new DisplayService(SerializerSink(conf.port), conf.signs)
+    new DisplayService(Sink.ignore, conf.signs)
+//    new DisplayService(SerializerSink(conf.port), conf.signs)
   }
 
   def clock(): Unit = {
@@ -27,6 +28,10 @@ class ApplicationService @Inject() (
 
   def gameOfLife(): Unit = {
     display.start(GameOfLifeService.source(conf.signs))
+  }
+
+  def message(sender: String, message: String): Unit = {
+    display.start(MessageService.messageSource(conf.signs, sender, message))
   }
 
   lifecycle.addStopHook({
