@@ -2,6 +2,7 @@ package services
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
+import clients.SerializerSink
 import config.ApplicationSettings
 import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
@@ -18,8 +19,13 @@ class ApplicationService @Inject() (
 
   private val display = {
     implicit val system: ActorSystem = ActorSystem("flipsys")
-    new DisplayService(Sink.ignore, conf.signs)
-//    new DisplayService(SerializerSink(conf.port), conf.signs)
+    new DisplayService(
+      {
+        if (!conf.stubPort) SerializerSink(conf.port)
+        else Sink.ignore
+      },
+      conf.signs
+    )
   }
 
   def clock(): Unit = {
