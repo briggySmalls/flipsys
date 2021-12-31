@@ -20,15 +20,7 @@ object SignsService {
 
       val broadcast = builder.add(Broadcast[(String, Image)](signs.size))
       // Create a flow per sign
-      val signFlows = signs.map(c => {
-        builder.add(
-          Flow[(String, Image)]
-            .filter(_._1 == c.name) // Listen to specific sign
-            .map(_._2) // Take the image
-            .log(c.name, _.toString())
-            .via(signFlow(c)) // Transform to bytes
-        )
-      })
+      val signFlows = signs.map(c => builder.add(signFlow(c)))
       val merge = builder.add(Merge[Seq[Byte]](signs.size))
       val flip = builder.add(Flow[(String, Image)].map({ case (id, image) =>
         if (id == "top")
@@ -46,9 +38,17 @@ object SignsService {
       FlowShape.of(flip.in, merge.out)
     })
 
-  private def signFlow(config: SignConfig): Flow[Image, Seq[Byte], NotUsed] =
-    Flow[Image]
-      .map(image =>
+  private def signFlow(
+      config: SignConfig
+  ): Flow[DisplayPayload, Seq[Byte], NotUsed] =
+    Flow[DisplayPayload]
+      .filter(_._1 == config.name) // Listen to the specific sign
+      .throttle(
+        1,
+        2 seconds
+      ) // A single sign can only handle images at a certain rate
+      .log(config.name, _._2.toString())
+      .map { case (_, image) =>
         config.size match {
           case (width, _) if (width != image.columns) =>
             throw new Error(
@@ -58,13 +58,7 @@ object SignsService {
             throw new Error(
               s"Incompatible image width (${image.rows}, should be ${height})"
             )
-          case _ => {
-            DrawImage(config.address, image).bytes
-          }
+          case _ => DrawImage(config.address, image).bytes
         }
-      )
-      .throttle(
-        1,
-        2 seconds
-      ) // A single sign can only handle images ata certain rate
+      }
 }
