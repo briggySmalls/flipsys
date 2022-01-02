@@ -8,13 +8,14 @@ import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ApplicationService @Inject() (
     config: Configuration,
     lifecycle: ApplicationLifecycle
-) extends Logging {
+)(implicit ec: ExecutionContext)
+    extends Logging {
   private val conf = config.get[ApplicationSettings]("flipsys")
 
   private val display = {
@@ -24,7 +25,8 @@ class ApplicationService @Inject() (
         if (!conf.stubPort) SerializerSink(conf.port)
         else Sink.ignore
       },
-      conf.signs
+      conf.signs,
+      () => ClockService.calendarSource(conf.signs)
     )
   }
 
@@ -44,6 +46,4 @@ class ApplicationService @Inject() (
     // Wrap up when we're done
     () => Future.successful(display.stop())
   })
-
-  clock()
 }

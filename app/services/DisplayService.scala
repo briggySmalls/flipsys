@@ -3,11 +3,20 @@ package services
 import akka.stream.{KillSwitch, KillSwitches, Materializer}
 import akka.stream.scaladsl.{Keep, MergeHub, Sink, Source}
 import config.SignConfig
+import play.api.Logging
 import services.StreamTypes.DisplayPayload
 
-class DisplayService(sink: Sink[Seq[Byte], _], signs: Seq[SignConfig])(implicit
-    materializer: Materializer
-) {
+import scala.concurrent.ExecutionContext
+import scala.util.Failure
+
+class DisplayService(
+    sink: Sink[Seq[Byte], _],
+    signs: Seq[SignConfig],
+    defaultSource: () => Source[DisplayPayload, _]
+)(implicit
+    materializer: Materializer,
+    ec: ExecutionContext
+) extends Logging {
   // Create a mergehub so we can keep the sink alive whilst swapping sources
   private val mergedSource = MergeHub.source[Seq[Byte]]
   private val mergedSink = mergedSource.to(sink).run()
@@ -15,6 +24,17 @@ class DisplayService(sink: Sink[Seq[Byte], _], signs: Seq[SignConfig])(implicit
     None // State of currently running source
 
   def start(source: Source[DisplayPayload, _]): Unit = {
+    runStream(source, withFallback = true)
+  }
+
+  def stop(): Unit =
+    killSwitch.foreach(_.shutdown)
+
+  private def runStream(
+      source: Source[DisplayPayload, _],
+      withFallback: Boolean = false
+  ): Unit = {
+    logger.info(s"starting source: $source")
     stop()
     killSwitch = Some(
       source
@@ -28,11 +48,21 @@ class DisplayService(sink: Sink[Seq[Byte], _], signs: Seq[SignConfig])(implicit
         // This is so we "yank" the source without any pending, backpressured
         // images appearing after the switch
         .viaMat(KillSwitches.single)(Keep.right)
+        .watchTermination() { (killSwitch, future) =>
+          if (withFallback) future.onComplete {
+            case Failure(exception) =>
+              logger.error("Stream failed:", exception)
+              runStream(defaultSource())
+            case _ =>
+              logger.debug("Stream completed, starting default")
+              runStream(defaultSource())
+          }
+          killSwitch
+        }
         .to(mergedSink)
         .run()
     )
   }
 
-  def stop(): Unit =
-    killSwitch.foreach(_.shutdown)
+  runStream(defaultSource())
 }
