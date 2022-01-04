@@ -12,12 +12,10 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class ApplicationService @Inject() (
-    config: Configuration,
+    settings: ApplicationSettings,
     lifecycle: ApplicationLifecycle
 )(implicit ec: ExecutionContext)
     extends Logging {
-  private val conf = config.get[ApplicationSettings]("flipsys")
-
   private val display = {
     implicit val system: ActorSystem = ActorSystem("flipsys")
     new DisplayService(
@@ -25,21 +23,21 @@ class ApplicationService @Inject() (
         if (!conf.stubPort) SerializerSink(conf.port)
         else Sink.ignore
       },
-      conf.signs,
-      () => ClockService.calendarSource(conf.signs)
+      settings.signs,
+      () => ClockService.calendarSource(settings.signs)
     )
   }
 
   def clock(): Unit = {
-    display.start(ClockService.calendarSource(conf.signs))
+    display.start(ClockService.calendarSource(settings.signs))
   }
 
   def gameOfLife(): Unit = {
-    display.start(GameOfLifeService.source(conf.signs))
+    display.start(GameOfLifeService.source(settings.signs))
   }
 
   def message(sender: String, message: String): Unit = {
-    display.start(MessageService.messageSource(conf.signs, sender, message))
+    display.start(MessageService.messageSource(settings.signs, sender, message))
   }
 
   lifecycle.addStopHook({
