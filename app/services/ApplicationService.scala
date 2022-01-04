@@ -6,6 +6,7 @@ import clients.SerializerSink
 import config.ApplicationSettings
 import play.api.{Configuration, Logging}
 import play.api.inject.ApplicationLifecycle
+import services.hardware.HardwareLayer
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -13,16 +14,14 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ApplicationService @Inject() (
     settings: ApplicationSettings,
+    hardware: HardwareLayer,
     lifecycle: ApplicationLifecycle
 )(implicit ec: ExecutionContext)
     extends Logging {
   private val display = {
     implicit val system: ActorSystem = ActorSystem("flipsys")
     new DisplayService(
-      {
-        if (!conf.stubPort) SerializerSink(conf.port)
-        else Sink.ignore
-      },
+      hardware.serialSink,
       settings.signs,
       () => ClockService.calendarSource(settings.signs)
     )
