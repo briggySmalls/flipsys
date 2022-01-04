@@ -5,8 +5,13 @@ import play.api.mvc._
 import services.ApplicationService
 
 import javax.inject.Inject
+import scala.util.{Failure, Success}
 
-class HomeController @Inject() (cc: ControllerComponents, app: ApplicationService) extends AbstractController(cc) with Logging {
+class HomeController @Inject() (
+    cc: ControllerComponents,
+    app: ApplicationService
+) extends AbstractController(cc)
+    with Logging {
   def clock() = Action { implicit request: Request[AnyContent] =>
     logger.info("Clock request")
     app.clock()
@@ -19,9 +24,18 @@ class HomeController @Inject() (cc: ControllerComponents, app: ApplicationServic
     Ok("Success!")
   }
 
-  def message(sender: String, message: String) = Action { implicit request: Request[AnyContent] =>
-    logger.info(s"Message request (sender: '$sender', message: '$message')")
-    app.message(sender, message)
-    Ok("Success!")
+  def message(sender: String, message: String) = Action {
+    implicit request: Request[AnyContent] =>
+      logger.info(s"Message request (sender: '$sender', message: '$message')")
+      app.message(sender, message)
+      Ok("Success!")
+  }
+
+  def dequeue() = Action { implicit request: Request[AnyContent] =>
+    logger.info("Dequeue request")
+    app.dequeue() match {
+      case Failure(exc) => InternalServerError(exc.toString)
+      case Success(_)   => Ok("Success!")
+    }
   }
 }

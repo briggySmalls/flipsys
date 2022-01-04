@@ -1,3 +1,4 @@
 GET /start/clock controllers.HomeController.clock()
 GET /start/gameOfLife controllers.HomeController.gameOfLife()
-GET /start/message controllers.HomeController.message(sender: String, message: String)
+GET /messages/send controllers.HomeController.message(sender: String, message: String)
+GET /messages/dequeue controllers.HomeController.dequeue()
