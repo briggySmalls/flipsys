@@ -1,6 +1,5 @@
 package services.hardware
 
-import akka.NotUsed
 import akka.stream.scaladsl.Sink
 
 trait HardwareLayer {

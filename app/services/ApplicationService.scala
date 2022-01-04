@@ -1,10 +1,8 @@
 package services
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Sink
-import clients.SerializerSink
 import config.ApplicationSettings
-import play.api.{Configuration, Logging}
+import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import services.hardware.HardwareLayer
 

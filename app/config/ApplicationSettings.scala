@@ -1,7 +1,6 @@
 package config
 
-import com.typesafe.config.Config
-import play.api.{ConfigLoader, Configuration}
+import play.api.Configuration
 
 import javax.inject.{Inject, Singleton}
 

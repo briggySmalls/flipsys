@@ -6,5 +6,5 @@ import javax.inject.{Inject, Singleton}
 
 @Singleton
 class SimulatedHardwareSettings @Inject() (config: Configuration) {
-  private val conf = config.get[Configuration]("flipsys.hardware")
+  config.get[Configuration]("flipsys.hardware")
 }
