@@ -5,4 +5,5 @@ object Versions {
   val scalaTestPlus = "5.0.0"
   val jSerialComm = "[2.0.0,3.0.0)"
   val nScalaTime = "2.30.0"
+  val lanterna = "3.1.1"
 }

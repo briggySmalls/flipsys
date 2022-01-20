@@ -26,6 +26,7 @@ libraryDependencies ++= Seq(
   "org.scalameta" %% "munit" % "0.7.22" % Test,
   "com.fazecast" % "jSerialComm" % Versions.jSerialComm,
   "com.github.nscala-time" %% "nscala-time" % Versions.nScalaTime,
+  "com.googlecode.lanterna" % "lanterna" % Versions.lanterna,
   "org.scalactic" %% "scalactic" % Versions.scalaTest,
   "org.scalatest" %% "scalatest" % Versions.scalaTest % "test"
 )

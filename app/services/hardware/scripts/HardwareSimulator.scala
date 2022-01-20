@@ -3,13 +3,20 @@ package services.hardware.scripts
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink, StreamRefs}
 import com.typesafe.config.ConfigFactory
+import config.ApplicationSettings
 import models.simulator.{BytePayload, SignSinkOffer}
+import play.api.Configuration
+import services.hardware.SimulatorUi
 
 /** Runnable application for hosting a simulator to connect to the simulated HAL
   */
 object HardwareSimulator extends App {
   private val configString = s"""
-    |akka.remote.artery.canonical.port = 2552
+    |akka {
+    |  stdout-loglevel = "OFF"
+    |  loglevel = "OFF"
+    |  remote.artery.canonical.port = 2552
+    |}
     |""".stripMargin
   private val config = ConfigFactory
     .parseString(configString)
@@ -28,4 +35,7 @@ object HardwareSimulator extends App {
   )
   // Inform the remote simulated HAL of the stream entities it can use
   selection ! SignSinkOffer(ref)
+  //  Create the terminal UI
+  private val appConfig = new ApplicationSettings(Configuration(config))
+  val ui = new SimulatorUi(appConfig.signs)
 }
