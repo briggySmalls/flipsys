@@ -28,5 +28,6 @@ libraryDependencies ++= Seq(
   "com.github.nscala-time" %% "nscala-time" % Versions.nScalaTime,
   "com.googlecode.lanterna" % "lanterna" % Versions.lanterna,
   "org.scalactic" %% "scalactic" % Versions.scalaTest,
-  "org.scalatest" %% "scalatest" % Versions.scalaTest % "test"
+  "org.scalatest" %% "scalatest" % Versions.scalaTest % "test",
+  "org.scalatestplus" %% "scalacheck-1-15" % Versions.scalaTestPlus % "test"
 )
