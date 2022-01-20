@@ -11,6 +11,35 @@ class PacketsSuite
     with Matchers
     with TableDrivenPropertyChecks {
 
+  val imageTable = Table(
+    ("example", "packet", "bytes"),
+    (
+      "simple image packet", {
+        val img = Image(
+          Vector.tabulate(4, 2)((row, col) =>
+            if (row == 0 && col == 0) true else false
+          )
+        )
+        new DrawImage(1, img)
+      },
+      Seq(0x02, '1', '1', '0', '2', '0', '1', '0', '0', 0x03, '7', '8')
+    ),
+    (
+      "tall image packet", {
+        val img = Image(
+          Vector.tabulate(15, 2)((row, col) =>
+            if (row == 0 && col == 0) true
+            else if (row == 9 && col == 0) true
+            else false
+          )
+        )
+        new DrawImage(1, img)
+      },
+      Seq(0x02, '1', '1', '0', '4', '0', '1', '0', '2', '0', '0', '0', '0',
+        0x03, 'B', '4')
+    )
+  )
+
   "A Packet" should {
     "have bytes field" which
       forAll(
@@ -35,36 +64,21 @@ class PacketsSuite
             "stop test signs packet",
             StopTestSigns,
             Seq(0x02, 'C', '0', 0x03, '8', 'A')
-          ),
-          (
-            "simple image packet", {
-              val img = Image(
-                Vector.tabulate(4, 2)((row, col) =>
-                  if (row == 0 && col == 0) true else false
-                )
-              )
-              new DrawImage(1, img)
-            },
-            Seq(0x02, '1', '1', '0', '2', '0', '1', '0', '0', 0x03, '7', '8')
-          ),
-          (
-            "tall image packet", {
-              val img = Image(
-                Vector.tabulate(15, 2)((row, col) =>
-                  if (row == 0 && col == 0) true
-                  else if (row == 9 && col == 0) true
-                  else false
-                )
-              )
-              new DrawImage(1, img)
-            },
-            Seq(0x02, '1', '1', '0', '4', '0', '1', '0', '2', '0', '0', '0',
-              '0', 0x03, 'B', '4')
           )
-        )
+        ) ++ imageTable
       ) { (example, packet, bytes) =>
         s"correctly represents $example" in {
           packet.bytes shouldEqual bytes
+        }
+      }
+
+    "convert bytes to DrawImage" which
+      forAll(imageTable) { (example, image, bytes) =>
+        s"handles $example" in {
+          DrawImage.fromBytes(
+            bytes.map(_.toByte),
+            image.image.rows
+          ) should contain(image)
         }
       }
   }

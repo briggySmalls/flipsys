@@ -33,11 +33,15 @@ object Packet {
   val startByte: Byte = 0x02.toByte
   val endByte: Byte = 0x03.toByte
 
-  object StartTestSigns extends Packet(command = 3, address = 0)
-  object StopTestSigns extends Packet(command = 12, address = 0)
+  val startTestCommand = 3
+  val stopTestCommand = 12
+  val drawImageCommand = 1
+
+  object StartTestSigns extends Packet(command = startTestCommand, address = 0)
+  object StopTestSigns extends Packet(command = stopTestCommand, address = 0)
 
   case class DrawImage(address: Int, image: Image)
-      extends Packet(command = 1, address = address) {
+      extends Packet(command = drawImageCommand, address = address) {
 
     protected override def payload: Seq[Int] = {
       // We pad each column to align with a bytes-worth of data
@@ -73,9 +77,47 @@ object Packet {
       )
         yield image.data(row)(col)
     }
+  }
 
-    private def closestLargerMultiple(value: Int, base: Int) = {
-      (value.floatValue / base).ceil.toInt * base
-    }
+  object DrawImage {
+    def fromBytes(bytes: Seq[Byte], height: Int): Option[DrawImage] =
+      bytes match {
+        case Packet.startByte +: commandByte +: addressByte +: _ +: _ +: tail
+            if (HanoverByte
+              .fromAsciiHex(Seq(commandByte))
+              .value == Packet.drawImageCommand) => {
+          val address = HanoverByte.fromAsciiHex(Seq(addressByte)).value
+          val rawPayload =
+            tail.takeWhile(_ != Packet.endByte) // Drop checksum etc
+          val intPayload =
+            rawPayload
+              .grouped(2)
+              .map(HanoverByte.fromAsciiHex(_).value)
+              .toSeq // Convert to ints
+          val padding = closestLargerMultiple(height, 8)
+          val stringCols = intPayload
+            .grouped(padding / 8) // Group into columns
+            .map(
+              _.flatMap(i =>
+                // Convert integer to a zero-padded, big-endian binary string
+                "%8s".format(i.toBinaryString).replace(" ", "0").reverse
+              )
+                .dropRight(padding - height) // Drop the byte-aligned padding
+                .mkString
+            )
+            .toVector
+          val bits = stringCols
+            .map(_.map {
+              case '0' => false
+              case '1' => true
+            }.toVector)
+          Some(DrawImage(address, Image(bits).transpose()))
+        }
+        case _ => None
+      }
+  }
+
+  def closestLargerMultiple(value: Int, base: Int): Int = {
+    (value.floatValue / base).ceil.toInt * base
   }
 }
