@@ -13,7 +13,7 @@ class SignSinkActor(source: Source[Seq[Byte], NotUsed])
     log.info(s"Received remote sink: $sinkRef, connecting to $source")
     // Attach the remote sink to our signs
     source
-      .map(BytePayload)
+      .map(b => BytePayload(b.toArray))
       .to(sinkRef)
       .run()
   }

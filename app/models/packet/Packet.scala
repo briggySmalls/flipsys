@@ -37,6 +37,13 @@ object Packet {
   val stopTestCommand = 12
   val drawImageCommand = 1
 
+  def addressFromBytes(bytes: Seq[Byte]): Option[Int] = bytes match {
+    case Packet.startByte +: _ +: address +: _ =>
+      Some(HanoverByte.fromAsciiHex(Seq(address)).value)
+    case _ =>
+      None
+  }
+
   object StartTestSigns extends Packet(command = startTestCommand, address = 0)
   object StopTestSigns extends Packet(command = stopTestCommand, address = 0)
 

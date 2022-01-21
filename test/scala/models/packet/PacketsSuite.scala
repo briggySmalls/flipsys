@@ -81,5 +81,15 @@ class PacketsSuite
           ) should contain(image)
         }
       }
+
+    "extract address from bytes" which {
+      forAll(imageTable) { (example, image, bytes) =>
+        s"handles $example" in {
+          Packet.addressFromBytes(bytes.map(_.toByte)) should contain(
+            image.address
+          )
+        }
+      }
+    }
   }
 }

@@ -4,4 +4,4 @@ package models.simulator
   * @param bytes
   *   The bytes sent
   */
-case class BytePayload(bytes: Seq[Byte]) extends FlipsysSerializable
+case class BytePayload(bytes: Array[Byte]) extends FlipsysSerializable
