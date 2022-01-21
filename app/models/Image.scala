@@ -29,48 +29,64 @@ case class Image(val data: Vector[Vector[Boolean]]) {
   }
 
   override def toString: String = {
-    s"\n${data.map(row =>
-      s"|${row.map(if (_) "*" else " ").mkString}|\n"
-    ).mkString}"
+    s"\n${data.map(row => s"|${row.map(if (_) "⬤" else " ").mkString}|\n").mkString}"
   }
 }
 
 object Image {
-  private val font: Font =
-  {
+  private val font: Font = {
     val stream = getClass.getResourceAsStream("/Smirnof.ttf")
     require(stream != null)
-    Font.createFont(
-      Font.TRUETYPE_FONT,
-      stream
-    ).deriveFont(8f)
+    Font
+      .createFont(
+        Font.TRUETYPE_FONT,
+        stream
+      )
+      .deriveFont(8f)
   }
 
   def frame(size: (Int, Int), text: String): Either[String, Image] =
     frames(size, text).flatMap {
       case head +: Nil => Right(head)
-      case _ => Left(s"Text '$text' larger than a single frame")
+      case _           => Left(s"Text '$text' larger than a single frame")
     }
 
   def frames(size: (Int, Int), text: String): Either[String, Seq[Image]] = {
     splitToFrames(size._1, text).map(_.map(frameToImage(size, _)))
   }
 
-  private def splitToFrames(width: Int, text: String): Either[String, Seq[String]] = {
+  private def splitToFrames(
+      width: Int,
+      text: String
+  ): Either[String, Seq[String]] = {
     // Helper function for determining if text fits in a frame
     def testIfFits(text: String): Boolean = getTextBounds(text).getWidth < width
 
     @tailrec
-    def _splitToFrames(words: Seq[String], frames: Seq[String], pending: String): Either[String, Seq[String]] = {
+    def _splitToFrames(
+        words: Seq[String],
+        frames: Seq[String],
+        pending: String
+    ): Either[String, Seq[String]] = {
       words match {
         case Nil =>
           if (testIfFits(pending)) Right(frames :+ pending)
           else Left(s"Word '$pending' doesn't fit in a frame")
         case s +: tail =>
           val next = s"$pending $s".trim
-          if (testIfFits(next)) _splitToFrames(tail, frames, next)  // Still not reached end of the frame
+          if (testIfFits(next))
+            _splitToFrames(
+              tail,
+              frames,
+              next
+            ) // Still not reached end of the frame
           else if (next == s) Left(s"Word '$s' doesn't fit in a frame")
-          else _splitToFrames(tail, frames :+ pending, s) // Word $s was 1 word too many
+          else
+            _splitToFrames(
+              tail,
+              frames :+ pending,
+              s
+            ) // Word $s was 1 word too many
       }
     }
     _splitToFrames(text.split(' ').toSeq, Seq[String](), "")
@@ -93,7 +109,10 @@ object Image {
     graphics.drawString(
       text,
       math.round((width - bounds.getWidth) / 2),
-      math.round(math.max((height - bounds.getHeight) / 2, 0) + metrics.getAscent))
+      math.round(
+        math.max((height - bounds.getHeight) / 2, 0) + metrics.getAscent
+      )
+    )
 
     Image(
       Vector.tabulate(size._2, size._1)((y, x) =>
