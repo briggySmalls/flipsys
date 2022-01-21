@@ -16,7 +16,9 @@ class SimulatorUi(signs: Seq[SignConfig])(implicit materializer: Materializer) {
 
   val imagesSink: Sink[(SignConfig, Image), _] = Sink.foreach {
     case (sign, image) => {
-      labelsLookup.get(sign.address).map(_.setText(image.toString))
+      val img = if (sign.flip) image.rotate90().rotate90() else image
+      val label = labelsLookup.get(sign.address)
+      label.map(_.setText(img.toString))
     }
   }
 
