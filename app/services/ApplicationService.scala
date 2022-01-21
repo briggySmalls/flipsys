@@ -13,11 +13,12 @@ import scala.concurrent.{ExecutionContext, Future}
 class ApplicationService @Inject() (
     settings: ApplicationSettings,
     hardware: HardwareLayer,
+    actorSystem: ActorSystem,
     lifecycle: ApplicationLifecycle
 )(implicit ec: ExecutionContext)
     extends Logging {
+  implicit val system = actorSystem
   private val display = {
-    implicit val system: ActorSystem = ActorSystem("flipsys")
     new DisplayService(
       hardware.serialSink,
       settings.signs,

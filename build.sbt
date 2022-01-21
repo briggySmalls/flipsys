@@ -20,9 +20,14 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % Versions.akka,
   "com.typesafe.akka" %% "akka-stream" % Versions.akka,
   "com.typesafe.akka" %% "akka-testkit" % Versions.akka % Test,
+  "com.typesafe.akka" %% "akka-remote" % Versions.akka,
+  "com.typesafe.akka" %% "akka-cluster-typed" % Versions.akka,
+  "com.typesafe.akka" %% "akka-serialization-jackson" % Versions.akka,
   "org.scalameta" %% "munit" % "0.7.22" % Test,
   "com.fazecast" % "jSerialComm" % Versions.jSerialComm,
   "com.github.nscala-time" %% "nscala-time" % Versions.nScalaTime,
+  "com.googlecode.lanterna" % "lanterna" % Versions.lanterna,
   "org.scalactic" %% "scalactic" % Versions.scalaTest,
-  "org.scalatest" %% "scalatest" % Versions.scalaTest % "test"
+  "org.scalatest" %% "scalatest" % Versions.scalaTest % "test",
+  "org.scalatestplus" %% "scalacheck-1-15" % Versions.scalaTestPlus % "test"
 )

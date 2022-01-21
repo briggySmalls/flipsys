@@ -12,3 +12,10 @@ case class HanoverByte(val value: Int, val isPadded: Boolean = true) {
       .toIndexedSeq
   }
 }
+
+object HanoverByte {
+  def fromAsciiHex(bytes: Seq[Byte]): HanoverByte = {
+    val str = new String(bytes.toArray, StandardCharsets.US_ASCII)
+    HanoverByte(Integer.parseInt(str, 16))
+  }
+}

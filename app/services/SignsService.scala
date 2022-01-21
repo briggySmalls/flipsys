@@ -22,20 +22,12 @@ object SignsService {
       // Create a flow per sign
       val signFlows = signs.map(c => builder.add(signFlow(c)))
       val merge = builder.add(Merge[Seq[Byte]](signs.size))
-      val flip = builder.add(Flow[(String, Image)].map({ case (id, image) =>
-        if (id == "top")
-          (id, image.rotate90().rotate90())
-        else
-          (id, image)
-      }))
 
-      flip ~> broadcast
       signFlows.foreach(flow => {
         broadcast ~> flow ~> merge
       })
-      merge
 
-      FlowShape.of(flip.in, merge.out)
+      FlowShape.of(broadcast.in, merge.out)
     })
 
   private def signFlow(
@@ -47,8 +39,11 @@ object SignsService {
         1,
         2 seconds
       ) // A single sign can only handle images at a certain rate
-      .log(config.name, _._2.toString())
-      .map { case (_, image) =>
+      .map { case (_, i) =>
+        if (config.flip) i.rotate90().rotate90() else i
+      } // Flip if required
+      .log(config.name, _.toString())
+      .map { image =>
         config.size match {
           case (width, _) if (width != image.columns) =>
             throw new Error(
