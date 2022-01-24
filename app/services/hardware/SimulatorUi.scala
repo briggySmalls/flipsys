@@ -12,7 +12,7 @@ import models.Image
 import java.io.IOException
 
 class SimulatorUi(signs: Seq[SignConfig])(implicit materializer: Materializer) {
-  private val (gui, window, screen, labelsLookup) = setup()
+  private val (gui, window, screen, labelsLookup, messageButton) = setup()
 
   val imagesSink: Sink[(SignConfig, Image), _] = Sink.foreach {
     case (sign, image) => {
@@ -20,6 +20,11 @@ class SimulatorUi(signs: Seq[SignConfig])(implicit materializer: Materializer) {
       val label = labelsLookup.get(sign.address)
       label.map(_.setText(img.toString))
     }
+  }
+
+  val indicatorSink: Sink[Boolean, _] = Sink.foreach {
+    case true  => messageButton.setLabel("MESSAGE")
+    case false => messageButton.setLabel("message")
   }
 
   def run(): Unit = {
@@ -42,7 +47,7 @@ class SimulatorUi(signs: Seq[SignConfig])(implicit materializer: Materializer) {
 
     // Create window to hold the panel
     val window = new BasicWindow()
-    val (mainPanel, labelsLookup) = createContent(window)
+    val (mainPanel, labelsLookup, messageButton) = createContent(window)
     window.setComponent(mainPanel)
 
     // Create gui and start gui
@@ -51,10 +56,10 @@ class SimulatorUi(signs: Seq[SignConfig])(implicit materializer: Materializer) {
       new DefaultWindowManager(),
       new EmptySpace(TextColor.ANSI.BLUE)
     )
-    (gui, window, screen, labelsLookup)
+    (gui, window, screen, labelsLookup, messageButton)
   }
 
-  private def createContent(window: Window): (Panel, Map[Int, Label]) = {
+  private def createContent(window: Window) = {
     // Create panel to hold all components
     val mainPanel = new Panel()
     mainPanel.setLayoutManager(new LinearLayout(Direction.VERTICAL))
@@ -72,7 +77,8 @@ class SimulatorUi(signs: Seq[SignConfig])(implicit materializer: Materializer) {
       .toMap
 
     // Create a button for reading a message
-    mainPanel.addComponent(new Button("Message"))
+    val messageButton = new Button("Message")
+    mainPanel.addComponent(messageButton)
 
     mainPanel.addComponent(
       new Button(
@@ -84,6 +90,6 @@ class SimulatorUi(signs: Seq[SignConfig])(implicit materializer: Materializer) {
         }
       )
     )
-    (mainPanel, labels)
+    (mainPanel, labels, messageButton)
   }
 }

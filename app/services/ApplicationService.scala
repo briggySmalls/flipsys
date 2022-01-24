@@ -1,6 +1,7 @@
 package services
 
 import akka.actor.ActorSystem
+import akka.stream.scaladsl.{Sink, Source}
 import config.ApplicationSettings
 import models.Message
 import play.api.Logging
@@ -21,6 +22,7 @@ class ApplicationService @Inject() (
 )(implicit ec: ExecutionContext)
     extends Logging {
   implicit val system = actorSystem
+
   private val display = {
     new DisplayService(
       hardware.serialSink,
@@ -28,7 +30,22 @@ class ApplicationService @Inject() (
       () => ClockService.calendarSource(settings.signs)
     )
   }
+  private val activateSource = Source.queue[Unit](16)
+  private val (activateSourceQueue, materializedActivateSource) =
+    activateSource.preMaterialize()
+  private val button = new ButtonService(
+    materializedActivateSource,
+    hardware.pressedSource,
+    hardware.indicatorSink
+  )
   private var messages = Queue[Message]()
+
+  button.requestSource
+    .to(Sink.foreach { _ =>
+      dequeue()
+      ()
+    })
+    .run()
 
   def clock(): Unit = {
     display.start(ClockService.calendarSource(settings.signs))
@@ -40,6 +57,8 @@ class ApplicationService @Inject() (
 
   def message(sender: String, text: String): Unit = {
     messages = messages.enqueue(Message(sender, text))
+    logger.info("queuing activation")
+    activateSourceQueue.offer()
   }
 
   def dequeue(): Try[Unit] = {

@@ -1,13 +1,15 @@
 package services.hardware.scripts
 
 import akka.actor.ActorSystem
+import akka.stream.SinkRef
 import akka.stream.scaladsl.{Flow, Sink, StreamRefs}
+import clients.SimulatorReceptionist.SimulatorOffer
 import com.typesafe.config.ConfigFactory
 import config.{ApplicationSettings, SignConfig}
 import models.Image
 import models.packet.Packet
 import models.packet.Packet.DrawImage
-import models.simulator.{BytePayload, SignSinkOffer}
+import models.simulator.{BytePayload, StatusPayload}
 import play.api.Configuration
 import services.hardware.SimulatorUi
 
@@ -31,11 +33,25 @@ object HardwareSimulator extends App {
   private val appConfig = new ApplicationSettings(Configuration(config))
   val ui = new SimulatorUi(appConfig.signs)
 
-  connect(ui.imagesSink)
+  connect(
+    imageSink(ui.imagesSink),
+    indicatorSink(ui.indicatorSink)
+  )
   ui.run()
 
-  private def connect(imagesSink: Sink[(SignConfig, Image), _]) = {
-    // Create a sink to print the images
+  private def connect(
+      imagesSink: SinkRef[BytePayload],
+      indicatorSink: SinkRef[StatusPayload]
+  ) = {
+    // Identify the remote simulator actor
+    val selection = system.actorSelection(
+      "akka://application@127.0.0.1:2551/user/signSinkActor"
+    )
+    // Inform the remote simulated HAL of the stream entities it can use
+    selection ! SimulatorOffer(imagesSink, indicatorSink)
+  }
+
+  private def imageSink(imagesSink: Sink[(SignConfig, Image), _]) = {
     val sink = Flow[BytePayload]
       .map(_.bytes)
       .map(bs => {
@@ -51,12 +67,14 @@ object HardwareSimulator extends App {
         (sign, image.image)
       } // Drop packets fail packet extraction
       .to(imagesSink)
-    val ref = StreamRefs.sinkRef[BytePayload]().to(sink).run()
-    // Identify the remote simulator actor
-    val selection = system.actorSelection(
-      "akka://application@127.0.0.1:2551/user/signSinkActor"
-    )
-    // Inform the remote simulated HAL of the stream entities it can use
-    selection ! SignSinkOffer(ref)
+
+    StreamRefs.sinkRef[BytePayload]().to(sink).run()
+  }
+
+  private def indicatorSink(indicatorSink: Sink[Boolean, _]) = {
+    val sink = Flow[StatusPayload]
+      .map(_.status)
+      .to(indicatorSink)
+    StreamRefs.sinkRef[StatusPayload]().to(sink).run()
   }
 }
