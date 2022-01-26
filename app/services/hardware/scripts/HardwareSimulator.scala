@@ -2,7 +2,7 @@ package services.hardware.scripts
 
 import akka.actor.ActorSystem
 import akka.stream.SinkRef
-import akka.stream.scaladsl.{Flow, Sink, StreamRefs}
+import akka.stream.scaladsl.{Flow, Sink, Source, StreamRefs}
 import clients.SimulatorReceptionist.SimulatorOffer
 import com.typesafe.config.ConfigFactory
 import config.{ApplicationSettings, SignConfig}
@@ -16,16 +16,7 @@ import services.hardware.SimulatorUi
 /** Runnable application for hosting a simulator to connect to the simulated HAL
   */
 object HardwareSimulator extends App {
-  private val configString = s"""
-    |akka {
-    |  stdout-loglevel = "OFF"
-    |  loglevel = "OFF"
-    |  remote.artery.canonical.port = 2552
-    |}
-    |""".stripMargin
-  private val config = ConfigFactory
-    .parseString(configString)
-    .withFallback(ConfigFactory.load())
+  // Create an actor system
   private implicit val system: ActorSystem =
     ActorSystem("SimulatorSystem", config)
 
@@ -33,25 +24,22 @@ object HardwareSimulator extends App {
   private val appConfig = new ApplicationSettings(Configuration(config))
   val ui = new SimulatorUi(appConfig.signs)
 
-  connect(
-    imageSink(ui.imagesSink),
-    indicatorSink(ui.indicatorSink)
-  )
+  // Connect to the remote simulated hardware layer
+  connect()
+
+  // Run the UI
   ui.run()
 
-  private def connect(
-      imagesSink: SinkRef[BytePayload],
-      indicatorSink: SinkRef[StatusPayload]
-  ) = {
+  private def connect() = {
     // Identify the remote simulator actor
     val selection = system.actorSelection(
       "akka://application@127.0.0.1:2551/user/signSinkActor"
     )
     // Inform the remote simulated HAL of the stream entities it can use
-    selection ! SimulatorOffer(imagesSink, indicatorSink)
+    selection ! SimulatorOffer(imageSink, indicatorSink, buttonSource)
   }
 
-  private def imageSink(imagesSink: Sink[(SignConfig, Image), _]) = {
+  private def imageSink = {
     val sink = Flow[BytePayload]
       .map(_.bytes)
       .map(bs => {
@@ -66,15 +54,34 @@ object HardwareSimulator extends App {
       .collect { case (sign, Some(image)) =>
         (sign, image.image)
       } // Drop packets fail packet extraction
-      .to(imagesSink)
+      .to(ui.imagesSink)
 
     StreamRefs.sinkRef[BytePayload]().to(sink).run()
   }
 
-  private def indicatorSink(indicatorSink: Sink[Boolean, _]) = {
+  private def indicatorSink = {
     val sink = Flow[StatusPayload]
       .map(_.status)
-      .to(indicatorSink)
+      .to(ui.indicatorSink)
     StreamRefs.sinkRef[StatusPayload]().to(sink).run()
   }
+
+  private def buttonSource = {
+    val sourceRef = StreamRefs.sourceRef[StatusPayload]()
+
+    ui.buttonSource
+      .map(StatusPayload)
+      .runWith(sourceRef)
+  }
+
+  private def config =
+    ConfigFactory
+      .parseString("""
+         |akka {
+         |  stdout-loglevel = "OFF"
+         |  loglevel = "OFF"
+         |  remote.artery.canonical.port = 2552
+         |}
+         |""".stripMargin)
+      .withFallback(ConfigFactory.load())
 }
