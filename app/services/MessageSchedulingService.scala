@@ -2,30 +2,53 @@ package services
 
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.stream.{KillSwitch, KillSwitches, Materializer}
+import models.Message
 import play.api.Logging
 
+import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.Try
 
-class ButtonService(
-    private val activate: Source[Unit, _],
+class MessageSchedulingService(
     private val pressed: Source[Boolean, _],
     private val indicator: Sink[Boolean, _]
 )(implicit materializer: Materializer)
     extends Logging {
-  import ButtonService._
+  import MessageSchedulingService._
 
-  private val eventSource = activate
+  private var messages = Queue[Message]()
+
+  private val activateSource = Source.queue[Unit](16)
+  private val (activateSourceQueue, materializedActivateSource) =
+    activateSource.preMaterialize()
+  private val eventSource = materializedActivateSource
     .map(_ => ActivateEvent)
     .merge(
       pressed.map(_ => PressedEvent)
     )
 
-  val requestSource: Source[Unit, _] = eventSource
+  val requestSource: Source[Message, _] = eventSource
     .via(onOffLatchFlow)
     .via(indicatorControlFlow)
     .filter(_ == PressedEvent)
-    .map(e => ())
+    .map(e => (dequeue().toOption))
+    .collect { case Some(msg) => msg }
+
+  def message(message: Message): Unit = {
+    messages = messages.enqueue(message)
+    logger.info("queuing activation")
+    activateSourceQueue.offer()
+  }
+
+  private def dequeue(): Try[Message] = {
+    for {
+      (msg, tail) <- Try(messages.dequeue)
+    } yield {
+      messages = tail
+      msg
+    }
+  }
 
   private def onOffLatchFlow =
     Flow[ButtonEvent]
@@ -76,7 +99,7 @@ class ButtonService(
   }
 }
 
-object ButtonService {
+object MessageSchedulingService {
   trait ButtonEvent
   object ActivateEvent extends ButtonEvent
   object PressedEvent extends ButtonEvent

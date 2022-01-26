@@ -1,7 +1,7 @@
 package services
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Sink
 import config.ApplicationSettings
 import models.Message
 import play.api.Logging
@@ -9,9 +9,7 @@ import play.api.inject.ApplicationLifecycle
 import services.hardware.HardwareLayer
 
 import javax.inject.{Inject, Singleton}
-import scala.collection.immutable.Queue
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 
 @Singleton
 class ApplicationService @Inject() (
@@ -30,20 +28,17 @@ class ApplicationService @Inject() (
       () => ClockService.calendarSource(settings.signs)
     )
   }
-  private val activateSource = Source.queue[Unit](16)
-  private val (activateSourceQueue, materializedActivateSource) =
-    activateSource.preMaterialize()
-  private val button = new ButtonService(
-    materializedActivateSource,
+
+  private val messageScheduler = new MessageSchedulingService(
     hardware.pressedSource,
     hardware.indicatorSink
   )
-  private var messages = Queue[Message]()
 
-  button.requestSource
-    .to(Sink.foreach { _ =>
-      dequeue()
-      ()
+  messageScheduler.requestSource
+    .to(Sink.foreach { msg =>
+      display.start(
+        MessageService.messageSource(settings.signs, msg.sender, msg.text)
+      )
     })
     .run()
 
@@ -55,22 +50,8 @@ class ApplicationService @Inject() (
     display.start(GameOfLifeService.source(settings.signs))
   }
 
-  def message(sender: String, text: String): Unit = {
-    messages = messages.enqueue(Message(sender, text))
-    logger.info("queuing activation")
-    activateSourceQueue.offer()
-  }
-
-  def dequeue(): Try[Unit] = {
-    for {
-      (msg, tail) <- Try(messages.dequeue)
-    } yield {
-      messages = tail
-      display.start(
-        MessageService.messageSource(settings.signs, msg.sender, msg.text)
-      )
-    }
-  }
+  def message(sender: String, text: String) =
+    messageScheduler.message(Message(sender, text))
 
   lifecycle.addStopHook({
     // Wrap up when we're done

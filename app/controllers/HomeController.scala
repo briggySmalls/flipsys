@@ -30,12 +30,4 @@ class HomeController @Inject() (
       app.message(sender, message)
       Ok("Success!")
   }
-
-  def dequeue() = Action { implicit request: Request[AnyContent] =>
-    logger.info("Dequeue request")
-    app.dequeue() match {
-      case Failure(exc) => InternalServerError(exc.toString)
-      case Success(_)   => Ok("Success!")
-    }
-  }
 }
