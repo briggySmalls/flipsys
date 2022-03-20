@@ -64,32 +64,32 @@ class MessageSchedulingService(
     messagesQueue.offer(message)
   }
 
-  private def onOffLatchFlow =
+  private def onOffLatchFlow: Flow[ButtonEvent, Boolean, NotUsed] =
     Flow[ButtonEvent]
       .statefulMapConcat { () =>
-        var state: ButtonEvent = PressedEvent
+        var count: Int = 0
 
-        {
-          case e if (e == state) =>
-            Nil // Filter out duplicate events
-          case e => {
-            state = e
-            e :: Nil
+        (e: ButtonEvent) => {
+          e match {
+            case PressedEvent =>
+              count -= 1
+            case ActivateEvent =>
+              count += 1
           }
+          (count == 0) :: Nil
         }
       }
 
   private def indicatorControlFlow =
-    Flow[ButtonEvent]
-      .scan[Option[KillSwitch]](None) { (maybeKs, e) =>
-        e match {
-          case ActivateEvent =>
-            logger.info("Starting indicator stream")
-            Some(runIndicatorStream())
-          case PressedEvent =>
-            logger.info("Stopping indicator stream")
-            maybeKs.foreach(_.shutdown())
-            None
+    Flow[Boolean]
+      .scan[Option[KillSwitch]](None) { (maybeKs, isEmpty) =>
+        if (!isEmpty) {
+          logger.info("Starting indicator stream")
+          Some(runIndicatorStream())
+        } else {
+          logger.info("Stopping indicator stream")
+          maybeKs.foreach(_.shutdown())
+          None
         }
       }
 
