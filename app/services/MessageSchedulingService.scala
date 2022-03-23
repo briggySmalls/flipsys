@@ -1,16 +1,14 @@
 package services
 
 import akka.NotUsed
-import akka.stream.scaladsl.{
-  Broadcast,
-  Flow,
-  GraphDSL,
-  Keep,
-  Merge,
-  Sink,
-  Source
+import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Sink, Source}
+import akka.stream.{
+  KillSwitch,
+  KillSwitches,
+  Materializer,
+  SourceShape,
+  UniqueKillSwitch
 }
-import akka.stream.{KillSwitch, KillSwitches, Materializer, SourceShape}
 import models.Message
 import play.api.Logging
 
@@ -22,7 +20,6 @@ class MessageSchedulingService(
     private val indicator: Sink[Boolean, _]
 )(implicit materializer: Materializer)
     extends Logging {
-  import MessageSchedulingService._
 
   private val (messagesQueue, messagesSource) =
     Source.queue[Message](10).preMaterialize()
@@ -32,31 +29,21 @@ class MessageSchedulingService(
     GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
       import GraphDSL.Implicits._
 
-      val gatedFlow = builder.add(gate.flow)
-      val bCastMessages = builder.add(Broadcast[Message](2))
-      val bCastPressed = builder.add(Broadcast[Boolean](2))
+      val gateGraph = builder.add(gate.graph)
       val latchSink =
         builder.add(Sink.foreach((b: Boolean) => if (b) gate.latch()))
-      val msg2Event = builder.add(Flow[Message].map(_ => ActivateEvent))
-      val press2Event = builder.add(Flow[Boolean].map(_ => PressedEvent))
-      val merge = builder.add(Merge[ButtonEvent](2))
-      val onOff = builder.add(onOffLatchFlow)
       val indicatorCf = builder.add(indicatorControlFlow.to(Sink.ignore))
 
       // Create the main flow: messages that are gated
-      messagesSource ~> bCastMessages.in
-      bCastMessages.out(0) ~> gatedFlow
+      messagesSource ~> gateGraph.in
 
       // Control the gate
-      pressed ~> bCastPressed.in
-      bCastPressed.out(0) ~> latchSink
+      pressed ~> latchSink
 
       // Add logic for controlling the indicator
-      bCastMessages.out(1) ~> msg2Event ~> merge.in(0)
-      bCastPressed.out(1) ~> press2Event ~> merge.in(1)
-      merge.out ~> onOff ~> indicatorCf
+      gateGraph.status ~> indicatorCf
 
-      SourceShape.of(gatedFlow.out)
+      SourceShape.of(gateGraph.out)
     }
   )
 
@@ -64,36 +51,21 @@ class MessageSchedulingService(
     messagesQueue.offer(message)
   }
 
-  private def onOffLatchFlow: Flow[ButtonEvent, Boolean, NotUsed] =
-    Flow[ButtonEvent]
-      .statefulMapConcat { () =>
-        var count: Int = 0
-
-        (e: ButtonEvent) => {
-          e match {
-            case PressedEvent =>
-              count -= 1
-            case ActivateEvent =>
-              count += 1
-          }
-          (count == 0) :: Nil
-        }
-      }
-
   private def indicatorControlFlow =
-    Flow[Boolean]
-      .scan[Option[KillSwitch]](None) { (maybeKs, isEmpty) =>
-        if (!isEmpty) {
-          logger.info("Starting indicator stream")
-          Some(runIndicatorStream())
-        } else {
-          logger.info("Stopping indicator stream")
-          maybeKs.foreach(_.shutdown())
-          None
+    Flow[GateFlow.Status]
+      .scan[Option[KillSwitch]](None) { (maybeKs, status) =>
+        status match {
+          case GateFlow.Empty =>
+            logger.info(s"Stopping indicator stream: ${maybeKs}")
+            maybeKs.foreach(_.shutdown())
+            None
+          case GateFlow.NonEmpty =>
+            logger.info("Starting indicator stream")
+            Some(runIndicatorStream())
         }
       }
 
-  private def runIndicatorStream() = {
+  private def runIndicatorStream(): UniqueKillSwitch = {
     Source
       .tick(0 second, 1 second, None)
       .viaMat(KillSwitches.single)(Keep.right)
