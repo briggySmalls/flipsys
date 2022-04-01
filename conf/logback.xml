@@ -9,7 +9,7 @@
   </appender>
 
   <logger name="play" level="INFO" />
-  <logger name="akka.stream" level="DEBUG" />
+<!--  <logger name="akka.stream" level="DEBUG" />-->
 
   <root level="INFO">
     <appender-ref ref="STDOUT" />
