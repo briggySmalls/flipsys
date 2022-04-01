@@ -1,7 +1,9 @@
 package services
 
 import akka.actor.ActorSystem
+import akka.stream.scaladsl.Sink
 import config.ApplicationSettings
+import models.Message
 import play.api.Logging
 import play.api.inject.ApplicationLifecycle
 import services.hardware.HardwareLayer
@@ -18,6 +20,7 @@ class ApplicationService @Inject() (
 )(implicit ec: ExecutionContext)
     extends Logging {
   implicit val system = actorSystem
+
   private val display = {
     new DisplayService(
       hardware.serialSink,
@@ -25,6 +28,19 @@ class ApplicationService @Inject() (
       () => ClockService.calendarSource(settings.signs)
     )
   }
+
+  private val messageScheduler = new MessageSchedulingService(
+    hardware.pressedSource,
+    hardware.indicatorSink
+  )
+
+  messageScheduler.requestSource
+    .to(Sink.foreach { msg =>
+      display.start(
+        MessageService.messageSource(settings.signs, msg.sender, msg.text)
+      )
+    })
+    .run()
 
   def clock(): Unit = {
     display.start(ClockService.calendarSource(settings.signs))
@@ -34,9 +50,8 @@ class ApplicationService @Inject() (
     display.start(GameOfLifeService.source(settings.signs))
   }
 
-  def message(sender: String, message: String): Unit = {
-    display.start(MessageService.messageSource(settings.signs, sender, message))
-  }
+  def message(sender: String, text: String) =
+    messageScheduler.message(Message(sender, text))
 
   lifecycle.addStopHook({
     // Wrap up when we're done
