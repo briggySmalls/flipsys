@@ -1,6 +1,6 @@
 package services
 
-import akka.NotUsed
+import akka.{Done, NotUsed}
 import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Sink, Source}
 import akka.stream.{
   KillSwitch,
@@ -12,6 +12,7 @@ import akka.stream.{
 import models.Message
 import play.api.Logging
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -30,8 +31,7 @@ class MessageSchedulingService(
       import GraphDSL.Implicits._
 
       val gateGraph = builder.add(gate.graph)
-      val latchSink =
-        builder.add(Sink.foreach((b: Boolean) => if (b) gate.latch()))
+      val latchSink = builder.add(latchOnPress)
       val indicatorCf = builder.add(indicatorControlFlow.to(Sink.ignore))
 
       // Create the main flow: messages that are gated
@@ -50,6 +50,14 @@ class MessageSchedulingService(
   def message(message: Message): Unit = {
     messagesQueue.offer(message)
   }
+
+  private def latchOnPress: Sink[Boolean, Future[Done]] =
+    Sink.foreach((b: Boolean) =>
+      if (b) {
+        val isLatched = gate.latch()
+        logger.info(s"latch() = ${isLatched}")
+      }
+    )
 
   private def indicatorControlFlow =
     Flow[GateFlow.Status]

@@ -3,12 +3,14 @@ package services
 import akka.NotUsed
 import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge, Sink, Source}
 import akka.stream.{Graph, Materializer, QueueOfferResult}
+import play.api.Logging
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-class GateFlow[T](bufferSize: Int)(implicit materializer: Materializer) {
+class GateFlow[T](bufferSize: Int)(implicit materializer: Materializer)
+    extends Logging {
   import GateFlow._
 
   private val (sourceQueue, source) =
@@ -64,6 +66,7 @@ class GateFlow[T](bufferSize: Int)(implicit materializer: Materializer) {
       }
       if (newStatus != status) {
         status = newStatus
+        logger.info(s"gate status updated: ${status}")
         status :: Nil
       } else
         Nil
@@ -77,6 +80,7 @@ class GateFlow[T](bufferSize: Int)(implicit materializer: Materializer) {
 
         (i: Int) => {
           count += i
+          logger.info(s"Gate queue size: ${count}")
           count :: Nil
         }
       }
