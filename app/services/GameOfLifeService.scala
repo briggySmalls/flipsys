@@ -3,13 +3,13 @@ package services
 import akka.NotUsed
 import akka.stream.scaladsl.{Flow, Source}
 import config.SignConfig
-import models.Image
+import models.{Frame, Image}
 import services.StreamTypes.DisplayPayload
 
 import scala.util.Random
 
 object GameOfLifeService {
-  def source(signs: Seq[SignConfig]): Source[DisplayPayload, NotUsed] = {
+  def source(signs: Seq[SignConfig]): Source[Frame, NotUsed] = {
     val sizes = signs.map(_.size)
     // Ensure images are vertically stackable
     require(sizes.map(_._1).forall(_ == sizes.head._1))
@@ -27,12 +27,13 @@ object GameOfLifeService {
         Some(current.iterate(), current.image)
       }
       .via(splitImages(signs))
+      .map(Frame)
   }
 
   private def splitImages(
       signs: Seq[SignConfig]
-  ): Flow[Image, DisplayPayload, _] = {
-    Flow[Image].mapConcat(image => {
+  ): Flow[Image, Seq[DisplayPayload], _] = {
+    Flow[Image].map(image => {
       signs.foldLeft(Seq(("rest", image)))({ case (images, config) =>
         val (init, (restName, lastImage)) = (images.init, images.last)
         val (split, rest) = lastImage.data.splitAt(config.size._2)

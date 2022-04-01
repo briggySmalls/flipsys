@@ -6,12 +6,13 @@ import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, Merge}
 import config.SignConfig
 import models.Image
 import models.packet.Packet.DrawImage
+import play.api.Logging
 import services.StreamTypes.DisplayPayload
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-object SignsService {
+object SignsService extends Logging {
   def flow(
       signs: Seq[SignConfig]
   ): Flow[DisplayPayload, Seq[Byte], NotUsed] =
@@ -35,13 +36,14 @@ object SignsService {
   ): Flow[DisplayPayload, Seq[Byte], NotUsed] =
     Flow[DisplayPayload]
       .filter(_._1 == config.name) // Listen to the specific sign
-      .throttle(
-        1,
-        2 seconds
-      ) // A single sign can only handle images at a certain rate
+//      .throttle(
+//        1,
+//        2 seconds
+//      ) // A single sign can only handle images at a certain rate
       .map { case (_, i) =>
         if (config.flip) i.rotate90().rotate90() else i
       } // Flip if required
+      .wireTap(i => logger.info(s"[${config.name}]: writing image"))
       .log(config.name, _.toString())
       .map { image =>
         config.size match {

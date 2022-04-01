@@ -2,7 +2,7 @@ package services
 
 import akka.stream.scaladsl.Source
 import config.SignConfig
-import models.Image
+import models.{Frame, Image}
 import services.StreamTypes.DisplayPayload
 
 object MessageService {
@@ -10,7 +10,7 @@ object MessageService {
       signs: Seq[SignConfig],
       sender: String,
       message: String
-  ): Source[DisplayPayload, _] = {
+  ): Source[Frame, _] = {
     val sizes = signs.map(_.size)
     require(sizes.forall(_ == sizes.head))
     val frames = for {
@@ -22,8 +22,9 @@ object MessageService {
       }
     }
     frames match {
-      case Left(msg)    => throw new RuntimeException(msg)
-      case Right(items) => Source(items)
+      case Left(msg) => throw new RuntimeException(msg)
+      case Right(items) =>
+        Source(items.grouped(signs.size).map(Frame).toSeq)
     }
   }
 }
