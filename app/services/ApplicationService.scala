@@ -1,7 +1,9 @@
 package services
 
+import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Sink
+import akka.stream.ClosedShape
+import akka.stream.scaladsl.{GraphDSL, RunnableGraph, Sink}
 import config.ApplicationSettings
 import models.Message
 import play.api.Logging
@@ -29,16 +31,28 @@ class ApplicationService @Inject() (
     )
   }
 
-  private val messageScheduler = new MessageSchedulingService(
-    hardware.pressedSource,
-    hardware.indicatorSink
-  )
+  private val messageScheduler = new MessageSchedulingService()
 
-  messageScheduler.requestSource
-    .to(Sink.foreach { msg =>
-      display.start(
-        MessageService.messageSource(settings.signs, msg.sender, msg.text)
-      )
+  // Start a stream for latching messages into the display service
+  RunnableGraph
+    .fromGraph(GraphDSL.create() {
+      implicit builder: GraphDSL.Builder[NotUsed] =>
+        import GraphDSL.Implicits._
+
+        val scheduler = builder.add(messageScheduler.graph)
+        val pressed = builder.add(hardware.pressedSource)
+        val indicator = builder.add(hardware.indicatorSink)
+        val sender = builder.add(Sink.foreach { msg: Message =>
+          display.start(
+            MessageService.messageSource(settings.signs, msg.sender, msg.text)
+          )
+        })
+
+        pressed ~> scheduler.pressed
+        scheduler.indicator ~> indicator
+        scheduler.message ~> sender
+
+        ClosedShape
     })
     .run()
 

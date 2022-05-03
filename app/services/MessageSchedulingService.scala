@@ -1,14 +1,8 @@
 package services
 
+import akka.stream.scaladsl.{Flow, GraphDSL, Keep, MergeHub, Sink, Source}
+import akka.stream._
 import akka.{Done, NotUsed}
-import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Sink, Source}
-import akka.stream.{
-  KillSwitch,
-  KillSwitches,
-  Materializer,
-  SourceShape,
-  UniqueKillSwitch
-}
 import models.Message
 import play.api.Logging
 
@@ -16,36 +10,43 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class MessageSchedulingService(
-    private val pressed: Source[Boolean, _],
-    private val indicator: Sink[Boolean, _]
-)(implicit materializer: Materializer)
+/** Service to buffer messages awaiting input
+  *
+  * The MessageSchedulingService emits a stream of messages, latched by an input
+  * source. It also emits a stream of indicator signals to show when there are
+  * messages waiting to be latched through.
+  * @param materializer
+  */
+class MessageSchedulingService()(implicit materializer: Materializer)
     extends Logging {
 
   private val (messagesQueue, messagesSource) =
     Source.queue[Message](10).preMaterialize()
   private val gate = new GateFlow[Message](10)
+  private val (indicatorSink, indicatorSource) =
+    MergeHub.source[Boolean].preMaterialize()
 
-  val requestSource: Source[Message, NotUsed] = Source.fromGraph(
+  val graph: Graph[MessageSchedulerShape[Message], NotUsed] =
     GraphDSL.create() { implicit builder: GraphDSL.Builder[NotUsed] =>
       import GraphDSL.Implicits._
 
       val gateGraph = builder.add(gate.graph)
       val latchSink = builder.add(latchOnPress)
       val indicatorCf = builder.add(indicatorControlFlow.to(Sink.ignore))
+      val indicatorSrc = builder.add(indicatorSource)
 
       // Create the main flow: messages that are gated
       messagesSource ~> gateGraph.in
 
-      // Control the gate
-      pressed ~> latchSink
-
       // Add logic for controlling the indicator
       gateGraph.status ~> indicatorCf
 
-      SourceShape.of(gateGraph.out)
+      MessageSchedulerShape(
+        latchSink.in,
+        gateGraph.out,
+        indicatorSrc.out
+      )
     }
-  )
 
   def message(message: Message): Unit = {
     messagesQueue.offer(message)
@@ -85,7 +86,7 @@ class MessageSchedulingService(
           status :: Nil
         }
       }
-      .to(indicator)
+      .to(indicatorSink)
       .run()
   }
 }

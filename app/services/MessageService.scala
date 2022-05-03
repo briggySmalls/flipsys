@@ -3,7 +3,6 @@ package services
 import akka.stream.scaladsl.Source
 import config.SignConfig
 import models.{Frame, Image}
-import services.StreamTypes.DisplayPayload
 
 object MessageService {
   def messageSource(
