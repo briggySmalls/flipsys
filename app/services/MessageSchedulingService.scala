@@ -90,9 +90,3 @@ class MessageSchedulingService()(implicit materializer: Materializer)
       .run()
   }
 }
-
-object MessageSchedulingService {
-  trait ButtonEvent
-  object ActivateEvent extends ButtonEvent
-  object PressedEvent extends ButtonEvent
-}

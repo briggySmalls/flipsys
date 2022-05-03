@@ -1,7 +1,8 @@
 package services
 
-import akka.stream.scaladsl.{Keep, MergeHub, Sink, Source}
-import akka.stream.{KillSwitch, KillSwitches, Materializer}
+import akka.NotUsed
+import akka.stream.scaladsl.{Flow, GraphDSL, Keep, MergeHub, Sink, Source}
+import akka.stream.{FlowShape, KillSwitch, KillSwitches, Materializer}
 import config.SignConfig
 import models.Frame
 import play.api.Logging
@@ -11,7 +12,6 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class DisplayService(
-    sink: Sink[Seq[Byte], _],
     signs: Seq[SignConfig],
     defaultSource: () => Source[Frame, _]
 )(implicit
@@ -19,46 +19,47 @@ class DisplayService(
     ec: ExecutionContext
 ) extends Logging {
   // Create a mergehub so we can keep the sink alive whilst swapping sources
-  private val mergedSource = MergeHub.source[Frame]
-  private val mergedSink = mergedSource
-    .mapConcat(f => {
-      f.images
-    })
-    // Transform payloads into bytes for each sign
-    .via(SignsService.flow(signs))
-    .to(sink)
-    .run()
-  private var killSwitch: Option[KillSwitch] =
-    None // State of currently running source
+  private val (mergedSink, mergedSource) =
+    MergeHub.source[Frame].preMaterialize()
 
-  def start(source: Source[Frame, _]): Unit = {
-    runStream(source, withFallback = true)
-  }
+  val flow = Flow.fromGraph(GraphDSL.create() {
+    implicit builder: GraphDSL.Builder[NotUsed] =>
+      import GraphDSL.Implicits._
 
-  def stop(): Unit =
-    killSwitch.foreach(_.shutdown)
+      val streamCreator = builder.add(runSources)
+      val expand = builder.add(Flow[Frame].mapConcat(f => f.images))
+      val signsFlow = builder.add(SignsService.flow(signs))
 
-  private def runStream(
-      source: Source[Frame, _],
-      withFallback: Boolean = false
-  ): Unit = {
-    logger.info(s"starting source: $source")
-    stop()
-    killSwitch = Some(
-      source
-        .concat(
-          if (withFallback) defaultSource()
-          else Source.empty
-        ) // Revert back to default when we're done
-        .throttle(1, 2 second)
-        // Introduce a killswitch downstream of the signs flow.
-        // This is so we "yank" the source without any pending, backpressured
-        // images appearing after the switch
-        .viaMat(KillSwitches.single)(Keep.right)
-        .to(mergedSink)
-        .run()
-    )
-  }
+      // Process all downstream frames through signs
+      mergedSource ~> expand ~> signsFlow
 
-  runStream(defaultSource())
+      FlowShape(
+        streamCreator.in,
+        signsFlow.out
+      )
+  })
+
+  private def runSources: Sink[Source[Frame, _], _] =
+    Flow[Source[Frame, _]]
+      .scan[Option[KillSwitch]](None) { (maybeKs, source) =>
+        {
+          logger.info(s"Stopping previous display stream: ${maybeKs}")
+          maybeKs.foreach(_.shutdown())
+          logger.info(s"starting source: $source")
+          Some(
+            source
+              .concat(
+                defaultSource()
+              ) // Revert back to default when we're done
+              .throttle(1, 2 second)
+              // Introduce a killswitch downstream of the signs flow.
+              // This is so we "yank" the source without any pending, backpressured
+              // images appearing after the switch
+              .viaMat(KillSwitches.single)(Keep.right)
+              .to(mergedSink)
+              .run()
+          )
+        }
+      }
+      .to(Sink.ignore)
 }
