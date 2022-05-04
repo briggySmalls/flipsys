@@ -48,7 +48,7 @@ class ApplicationService @Inject() (
         val displayFlow = builder.add(display.flow)
 
         // Configure the controls
-        pressed ~> scheduler.pressed
+        pressed ~> scheduler.control
         scheduler.indicator ~> indicator
 
         // Render messages on the signs
