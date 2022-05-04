@@ -1,7 +1,8 @@
 package services
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.{Flow, GraphDSL, RunnableGraph}
+import akka.stream.{ClosedShape, KillSwitches, UniqueKillSwitch}
 import config.ApplicationSettings
 import models.Message
 import play.api.Logging
@@ -23,38 +24,45 @@ class ApplicationService @Inject() (
 
   private val display = {
     new DisplayService(
-      hardware.serialSink,
       settings.signs,
       () => ClockService.calendarSource(settings.signs)
     )
   }
 
-  private val messageScheduler = new MessageSchedulingService(
-    hardware.pressedSource,
-    hardware.indicatorSink
-  )
+  private val messageScheduler = new MessageSchedulingService()
 
-  messageScheduler.requestSource
-    .to(Sink.foreach { msg =>
-      display.start(
-        MessageService.messageSource(settings.signs, msg.sender, msg.text)
-      )
+  // Start a stream for latching messages into the display service
+  val ks: UniqueKillSwitch = RunnableGraph
+    .fromGraph(GraphDSL.create(KillSwitches.single[Seq[Byte]]) {
+      implicit builder: GraphDSL.Builder[UniqueKillSwitch] => sw =>
+        import GraphDSL.Implicits._
+
+        val scheduler = builder.add(messageScheduler.graph)
+        val pressed = builder.add(hardware.pressedSource)
+        val indicator = builder.add(hardware.indicatorSink)
+        val toSource = builder.add(
+          Flow[Message].map(msg =>
+            MessageService.messageSource(settings.signs, msg.sender, msg.text)
+          )
+        )
+        val displayFlow = builder.add(display.flow)
+
+        // Configure the controls
+        pressed ~> scheduler.control
+        scheduler.indicator ~> indicator
+
+        // Render messages on the signs
+        scheduler.message ~> toSource ~> displayFlow ~> sw ~> hardware.serialSink
+
+        ClosedShape
     })
     .run()
-
-  def clock(): Unit = {
-    display.start(ClockService.calendarSource(settings.signs))
-  }
-
-  def gameOfLife(): Unit = {
-    display.start(GameOfLifeService.source(settings.signs))
-  }
 
   def message(sender: String, text: String) =
     messageScheduler.message(Message(sender, text))
 
   lifecycle.addStopHook({
     // Wrap up when we're done
-    () => Future.successful(display.stop())
+    () => Future.successful(ks.shutdown())
   })
 }
