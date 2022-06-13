@@ -29,5 +29,6 @@ libraryDependencies ++= Seq(
   "com.googlecode.lanterna" % "lanterna" % Versions.lanterna,
   "org.scalactic" %% "scalactic" % Versions.scalaTest,
   "org.scalatest" %% "scalatest" % Versions.scalaTest % "test",
-  "org.scalatestplus" %% "scalacheck-1-15" % Versions.scalaTestPlus % "test"
+  "org.scalatestplus" %% "scalacheck-1-15" % Versions.scalaTestPlus % "test",
+  "com.pi4j" % "pi4j-core" % Versions.py4j
 )
