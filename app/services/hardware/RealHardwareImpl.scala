@@ -13,14 +13,12 @@ import javax.inject.{Inject, Singleton}
 class RealHardwareImpl @Inject() (settings: RealHardwareSettings)(implicit materializer: Materializer)
     extends HardwareLayer {
   private val pi4j = Pi4J.newAutoContext
-  private val INDICATOR_PIN = 24 // PIN 18 = BCM 24
-  private val BUTTON_PIN = 6 //
 
   private val led = pi4j.create(DigitalOutput
     .newConfigBuilder(pi4j)
     .id("led")
     .name("Button Led")
-    .address(INDICATOR_PIN)
+    .address(settings.buttonPin)
     .shutdown(DigitalState.LOW)
     .initial(DigitalState.LOW)
     .provider("pigpio-digital-output"))
@@ -30,7 +28,7 @@ class RealHardwareImpl @Inject() (settings: RealHardwareSettings)(implicit mater
     .id("led")
     .name("Button")
     .pull(PullResistance.PULL_DOWN)
-    .address(BUTTON_PIN)
+    .address(settings.indicatorPin)
     .provider("pigpio-digital-output"))
 
   button.addListener(e =>
